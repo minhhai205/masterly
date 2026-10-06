@@ -12,10 +12,12 @@ venv/
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 
 # Môi trường và dữ liệu chạy
 .env
 .env.*
+!.env.example
 data/
 *.db
 *.log
