@@ -1,4 +1,4 @@
-<!-- PR từ nhánh chức năng vào dev. Tiêu đề bằng tiếng Anh, viết như commit, ví dụ: feat: add login page (#3) -->
+<!-- PR từ nhánh chức năng vào dev. Tiêu đề bằng tiếng Anh, viết như commit, ví dụ: feat(F01): add login page (#4) -->
 
 ## Thay đổi
 
