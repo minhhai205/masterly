@@ -1,12 +1,12 @@
 ---
 name: Chức năng
 about: Một chức năng trong backlog
-title: ""
+title: "[Fxx] "
 labels: []
 assignees: []
 ---
 
-<!-- Tiêu đề issue là tên chức năng, ví dụ: Đăng nhập -->
+<!-- Tiêu đề issue là mã chức năng và tên chức năng trong backlog, ví dụ: [F01] Đăng nhập -->
 
 ## Mục tiêu
 
