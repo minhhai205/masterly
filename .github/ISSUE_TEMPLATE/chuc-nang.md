@@ -6,7 +6,7 @@ labels: []
 assignees: []
 ---
 
-<!-- Tiêu đề issue: [mã] tên chức năng trong backlog: người dùng làm được gì. Ví dụ: [F02] Quản lý tài khoản: quản trị viên xem, tìm, tạo, xóa tài khoản -->
+<!-- Tiêu đề issue là mã chức năng và tên chức năng trong backlog, ví dụ: [F01] Đăng nhập -->
 
 ## Mục tiêu
 
