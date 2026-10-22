@@ -65,8 +65,3 @@ Một số thành phần được phát triển từ mã nguồn mở theo Apach
 và đã được sửa đổi.
 
 -->
-
-<!-- GHI NHỚ:
-Nếu dùng lại code mà DeepTutor lấy của bên thứ ba có giấy phép riêng,
-ví dụ web/vendor/thinking-orbs/ (MIT), thì giữ kèm file LICENSE của phần đó.
- -->
