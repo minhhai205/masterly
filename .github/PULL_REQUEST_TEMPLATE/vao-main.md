@@ -2,7 +2,7 @@
 
 ## Chức năng
 
-<!-- Mã và tên chức năng, ví dụ: [F01] Đăng nhập -->
+<!-- Tiêu đề của issue, ví dụ: [F02] Quản lý tài khoản: quản trị viên xem, tìm, tạo, xóa tài khoản -->
 
 Closes #
 
