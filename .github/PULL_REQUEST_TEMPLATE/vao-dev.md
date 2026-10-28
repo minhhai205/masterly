@@ -8,8 +8,3 @@
 
 Issue #
 <!-- Các việc cần làm trong issue mà PR này làm xong -->
-
-## Kiểm tra
-
-- [ ] Kiểm thử tự động chạy qua
-- [ ] Đã chạy thử trên máy: <!-- đã thử gì -->
