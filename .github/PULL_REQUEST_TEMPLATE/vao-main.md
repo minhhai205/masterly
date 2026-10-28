@@ -1,4 +1,4 @@
-<!-- PR từ dev vào main khi một chức năng đã xong và đã được chạy thử. Tiêu đề bằng tiếng Anh, ví dụ: feat(F01): login (#4) -->
+<!-- PR từ dev vào main khi một chức năng đã xong và đã được chạy thử. Tiêu đề bằng tiếng Anh, ví dụ: feat(F01): login (#25) -->
 
 ## Chức năng
 

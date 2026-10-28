@@ -6,22 +6,16 @@ labels: []
 assignees: []
 ---
 
-<!-- Tiêu đề issue là mã chức năng và tên chức năng trong backlog, ví dụ: [F01] Đăng nhập -->
+<!-- Tiêu đề issue là mã và tên chức năng trong backlog, ví dụ: [F01] Đăng nhập. Nội dung là phần thu gọn của đặc tả yêu cầu. -->
 
-## Mục tiêu
+## Mô tả
 
 <!-- Người dùng làm được gì khi chức năng này xong (1–2 câu). -->
 
-## Việc cần làm
+## Gồm
 
-- [ ]
-- [ ] Kiểm thử
-
-## Tiêu chí hoàn thành
-
-- [ ] <!-- Những gì người dùng tự chạy thử trên web để quyết định đưa chức năng lên main -->
-- [ ] Đạt tiêu chí chung (danh sách trong mẫu PR vào main)
+-
 
 ## Liên quan
 
-<!-- UCxx – <tên ca sử dụng> trong đặc tả yêu cầu; các ca sử dụng con trong biểu đồ phân rã -->
+<!-- UCxx – tên ca sử dụng: các ca sử dụng con -->
