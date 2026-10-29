@@ -11,7 +11,7 @@ Các mô hình ngôn ngữ lớn cho phép người học đặt câu hỏi bằ
 Bài toán đặt ra là xây dựng một ứng dụng web cho sinh viên và người tự học, đáp ứng ba yêu cầu:
 
 - **Học có kiểm chứng.** Với một mục tiêu học, hệ thống chia nội dung thành các điểm kiến thức, dẫn dắt người học qua từng điểm, đặt câu hỏi, chấm câu trả lời và theo dõi mức nắm vững của từng điểm. Người học chỉ chuyển sang điểm tiếp theo khi đã nắm vững điểm hiện tại, và các điểm đã học được đưa vào lịch ôn tập.
-- **Nhiều hoạt động học trên cùng một không gian.** Người học có thể hỏi đáp với AI, đọc tài liệu cùng AI, làm quiz luyện tập và vẽ sơ đồ minh họa. Kết quả của mỗi hoạt động được lưu lại và dùng lại làm nguồn cho hoạt động khác.
+- **Nhiều hoạt động học trên cùng một không gian.** Bên cạnh lộ trình, người học có thể hỏi đáp với AI trên tài liệu của mình và ghi chép trong lúc học, có AI ghi chép giúp. Kết quả của mỗi hoạt động được lưu lại và dùng lại làm nguồn cho hoạt động khác.
 - **Cá nhân hóa qua nhiều buổi học.** Hệ thống ghi nhớ thông tin về người học qua các buổi học để AI điều chỉnh cách hỗ trợ cho phù hợp với từng người.
 
 Điểm cốt lõi của bài toán là tách hai vai trò: AI đảm nhận việc giảng giải và đặt câu hỏi, còn việc người học đã nắm vững hay chưa và bước học tiếp theo là gì do hệ thống quyết định theo quy tắc nhất quán, dựa trên kết quả làm bài thực tế.
@@ -32,13 +32,13 @@ Hình 2.1 thể hiện một buổi học theo lộ trình, chia theo ba bên th
 
 **Hình 2.1. Biểu đồ hoạt động của một buổi học theo lộ trình**
 
-Bên cạnh quy trình này, người học dùng các hoạt động hỗ trợ khi cần: hỏi đáp tự do, hỏi trên tài liệu đang đọc, làm quiz hoặc yêu cầu một sơ đồ minh họa. Kết quả đáng giữ được lưu vào sổ ghi chép để dùng lại. Toàn bộ nội dung được tổ chức theo không gian học, ví dụ mỗi môn học một không gian.
+Bên cạnh quy trình này, người học hỏi đáp tự do với AI khi cần và ghi chép trong lúc học; AI có thể ghi chép giúp khi người học yêu cầu. Ghi chép được dùng lại làm nguồn cho các lần học sau. Toàn bộ nội dung được tổ chức theo không gian học, ví dụ mỗi môn học một không gian.
 
 ### 2.1.3. Phạm vi hệ thống
 
-Hệ thống là một ứng dụng web, mỗi người dùng có tài khoản và dữ liệu riêng. Việc sinh câu trả lời, xử lý tài liệu để tra cứu và tìm kiếm trên web do các dịch vụ AI bên ngoài đảm nhận; hệ thống không tự huấn luyện hay vận hành mô hình ngôn ngữ. Hệ thống làm việc với tài liệu dạng PDF, văn bản và Markdown; sơ đồ minh họa gồm bốn kiểu: sơ đồ khái niệm, lưu đồ, dòng thời gian và sơ đồ so sánh.
+Hệ thống là một ứng dụng web, mỗi người dùng có tài khoản và dữ liệu riêng. Việc sinh câu trả lời, xử lý tài liệu để tra cứu và tìm kiếm trên web do các dịch vụ AI bên ngoài đảm nhận; hệ thống không tự huấn luyện hay vận hành mô hình ngôn ngữ. Hệ thống làm việc với tài liệu dạng PDF, Word, PowerPoint, văn bản và Markdown.
 
-Các nội dung sau nằm ngoài phạm vi: học qua video và âm thanh, sinh ảnh và video, tương tác bằng giọng nói, sách do AI viết, tài liệu Word, Excel và PowerPoint, ứng dụng di động, tổ chức và lớp học, phân quyền nhiều cấp.
+Các nội dung sau nằm ngoài phạm vi: học qua video và âm thanh, sinh ảnh và video, tương tác bằng giọng nói, sách do AI viết, tài liệu Excel, ứng dụng di động, tổ chức và lớp học, phân quyền nhiều cấp.
 
 Hình 2.2 cho thấy các khối chức năng trong phạm vi hệ thống và liên kết giữa chúng: mọi nội dung học được tổ chức theo không gian học; tài liệu là nguồn cho việc học, kết quả học được lưu thành ghi chép để dùng lại; hoạt động học giúp hệ thống ghi nhớ về người học, và bộ nhớ đó quay lại cá nhân hóa việc học.
 
@@ -62,7 +62,7 @@ Hệ thống có ba tác nhân, đều là người dùng (Bảng 2.1). Các d�
 
 ### 2.2.2. Biểu đồ ca sử dụng tổng quát
 
-Hình 2.3 mô tả quan hệ giữa các tác nhân và chức năng của hệ thống. Khách tham gia ca sử dụng quản lý tài khoản cá nhân; người học tham gia chín ca sử dụng đầu; quản trị viên có toàn bộ ca sử dụng của người học và có thêm ca sử dụng quản trị hệ thống. Danh sách ca sử dụng được thống kê trong Bảng 2.2.
+Hình 2.3 mô tả quan hệ giữa các tác nhân và chức năng của hệ thống. Khách tham gia ca sử dụng quản lý tài khoản cá nhân; người học tham gia bảy ca sử dụng đầu; quản trị viên có toàn bộ ca sử dụng của người học và có thêm ca sử dụng quản trị hệ thống. Danh sách ca sử dụng được thống kê trong Bảng 2.2.
 
 ![Hình 2.3. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly](images/ca-su-dung-tong-quat.png)
 
@@ -75,17 +75,15 @@ Hình 2.3 mô tả quan hệ giữa các tác nhân và chức năng của hệ 
 | UC01 | Quản lý tài khoản cá nhân | Khách, Người học |
 | UC02 | Hỏi đáp với AI | Người học |
 | UC03 | Học theo lộ trình | Người học |
-| UC04 | Làm quiz luyện tập | Người học |
-| UC05 | Vẽ sơ đồ minh họa | Người học |
-| UC06 | Quản lý tài liệu học | Người học |
-| UC07 | Ghi chép | Người học |
-| UC08 | Quản lý bộ nhớ người học | Người học |
-| UC09 | Quản lý không gian học | Người học |
-| UC10 | Quản trị hệ thống | Quản trị viên |
+| UC04 | Quản lý tài liệu học | Người học |
+| UC05 | Ghi chép | Người học |
+| UC06 | Quản lý bộ nhớ người học | Người học |
+| UC07 | Quản lý không gian học | Người học |
+| UC08 | Quản trị hệ thống | Quản trị viên |
 
 ### 2.2.3. Đặc tả các ca sử dụng
 
-Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiện các ca sử dụng con. Tác nhân nối trực tiếp với những ca sử dụng con mà tác nhân tự bắt đầu; quan hệ «include» chỉ ca sử dụng con luôn được thực hiện cùng ca sử dụng chính, quan hệ «extend» chỉ ca sử dụng con tùy chọn, chỉ xảy ra bên trong ca sử dụng chính. Ba ca sử dụng thuộc phần học chính (UC02, UC03, UC04) được đặc tả đầy đủ với luồng cơ bản, luồng thay thế và quy tắc; các ca sử dụng còn lại được đặc tả gọn qua mô tả, các chức năng và quy tắc. Những điều kiện sau áp dụng chung cho mọi ca sử dụng, trừ UC01:
+Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiện các ca sử dụng con. Tác nhân nối trực tiếp với những ca sử dụng con mà tác nhân tự bắt đầu; quan hệ «include» chỉ ca sử dụng con luôn được thực hiện cùng ca sử dụng chính, quan hệ «extend» chỉ ca sử dụng con tùy chọn, chỉ xảy ra bên trong ca sử dụng chính. Hai ca sử dụng thuộc phần học chính (UC02, UC03) được đặc tả đầy đủ với luồng cơ bản, luồng thay thế và quy tắc; các ca sử dụng còn lại được đặc tả gọn qua mô tả, các chức năng và quy tắc. Những điều kiện sau áp dụng chung cho mọi ca sử dụng, trừ UC01:
 
 - **Tiền điều kiện chung.** Người dùng đã đăng nhập; với các chức năng có dùng AI, quản trị viên đã cấu hình mô hình AI.
 - **Ngoại lệ chung.** Khi dịch vụ AI lỗi hoặc quá thời gian, hệ thống thông báo lỗi, giữ nguyên dữ liệu đã có và cho phép thử lại.
@@ -111,14 +109,14 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 **Quy tắc:**
 
 - Mật khẩu có ít nhất 8 ký tự. Sai tên đăng nhập hoặc mật khẩu thì không đăng nhập được.
-- Hệ thống không có chức năng tự đăng ký. Tài khoản quản trị viên được khai báo sẵn khi cài đặt hệ thống; mọi tài khoản khác do quản trị viên tạo (UC10).
+- Hệ thống không có chức năng tự đăng ký. Tài khoản quản trị viên được khai báo sẵn khi cài đặt hệ thống; mọi tài khoản khác do quản trị viên tạo (UC08).
 - Phiên đăng nhập có thời hạn; hết hạn thì người dùng phải đăng nhập lại.
 
 #### UC02: Hỏi đáp với AI
 
 **Tác nhân:** Người học.
 
-**Mô tả:** Người học trò chuyện nhiều lượt với AI để tìm hiểu kiến thức. AI trả lời dựa trên cuộc trò chuyện và các nguồn được đính kèm, tự tra cứu tài liệu của người học hoặc tìm kiếm trên web khi cần. Ca sử dụng này bao gồm cả việc hỏi trên một tài liệu đang đọc. Các ca sử dụng con được thể hiện ở Hình 2.5.
+**Mô tả:** Người học trò chuyện nhiều lượt với AI để tìm hiểu kiến thức. AI trả lời dựa trên cuộc trò chuyện và các nguồn được đính kèm, tự tra cứu tài liệu của người học hoặc tìm kiếm trên web khi cần. Các ca sử dụng con được thể hiện ở Hình 2.5.
 
 ![Hình 2.5. Biểu đồ ca sử dụng phân rã – Hỏi đáp với AI](images/phan-ra-uc02.png)
 
@@ -138,9 +136,8 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 **Luồng thay thế:**
 
-- **Đính kèm nguồn.** Trước khi gửi, người học chọn nguồn cho lượt hỏi: tài liệu (kho tài liệu, tệp, tài liệu đang đọc) hoặc kết quả học cũ (cuộc trò chuyện cũ, sổ ghi chép, câu hỏi đã làm). AI dựa vào các nguồn này khi trả lời.
+- **Đính kèm nguồn.** Trước khi gửi, người học chọn nguồn cho lượt hỏi: tài liệu (kho tài liệu, tệp) hoặc kết quả học cũ (cuộc trò chuyện cũ, ghi chép). AI dựa vào các nguồn này khi trả lời.
 - **AI hỏi lại để làm rõ.** Khi yêu cầu chưa rõ, AI dừng lại và hỏi người học, mỗi câu hỏi có sẵn các lựa chọn để bấm; sau khi người học trả lời, AI trả lời tiếp.
-- **Hỏi trên tài liệu đang đọc.** Người học mở một tài liệu trong kho tài liệu (UC06) cạnh khung trò chuyện, chọn một đoạn rồi đặt câu hỏi. Câu trả lời chỉ ra vị trí liên quan trong tài liệu; bấm vào thì tài liệu chuyển tới đúng chỗ đó. Lần mở sau, tài liệu mở lại đúng chỗ đang đọc dở.
 - **Dừng lượt trả lời.** Trong lúc câu trả lời đang hiện, người học chọn dừng; hệ thống ngừng lượt đó và giữ phần đã hiển thị.
 - **Xem lại cuộc trò chuyện.** Người học mở danh sách cuộc trò chuyện của không gian học đang mở để xem lại hoặc hỏi tiếp.
 - **Lưu trữ, khôi phục cuộc trò chuyện.** Từ danh sách, người học lưu trữ cuộc trò chuyện không còn dùng và khôi phục khi cần.
@@ -153,7 +150,7 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 **Quy tắc:**
 
 - Câu trả lời phải hiển thị dần, không chờ sinh xong toàn bộ.
-- AI dùng bộ nhớ về người học (UC08) để điều chỉnh câu trả lời cho phù hợp.
+- AI dùng bộ nhớ về người học (UC06) để điều chỉnh câu trả lời cho phù hợp.
 
 #### UC03: Học theo lộ trình
 
@@ -171,7 +168,7 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 | Hành động của người học | Phản ứng của hệ thống |
 |---|---|
-| 1. Mở danh sách lộ trình, chọn tạo lộ trình mới, nhập mục tiêu học và chọn tài liệu làm nguồn nếu muốn (kho tài liệu, sổ ghi chép, cuộc trò chuyện cũ, câu hỏi đã làm). | 2. Tạo lộ trình và mở buổi lập dàn ý với gia sư AI. |
+| 1. Mở danh sách lộ trình, chọn tạo lộ trình mới, nhập mục tiêu học và chọn tài liệu làm nguồn nếu muốn (kho tài liệu, ghi chép, cuộc trò chuyện cũ). | 2. Tạo lộ trình và mở buổi lập dàn ý với gia sư AI. |
 | | 3. Gia sư hỏi về kiến thức đã có, mức độ muốn đạt, quỹ thời gian và cách học ưa thích. |
 | 4. Trả lời các câu hỏi của gia sư. | 5. Gia sư đề xuất dàn ý gồm các phần và các điểm kiến thức. |
 | 6. Yêu cầu chỉnh sửa cho tới khi đồng ý, rồi chốt dàn ý. | 7. Lưu dàn ý và chuyển lộ trình sang trạng thái học. |
@@ -210,76 +207,20 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 - Việc chấm bài, xét nắm vững và chọn bước tiếp theo do hệ thống quyết định theo quy tắc nhất quán; gia sư AI không tự quyết định người học đã qua hay chưa.
 - Một lần trả lời đúng chưa đủ để coi là nắm vững; người học phải trả lời đúng ổn định qua nhiều lần.
-- Chỉ câu trả lời của người học trong lộ trình mới làm thay đổi mức nắm vững; việc AI giảng giải, trả lời câu hỏi hay vẽ sơ đồ không làm thay đổi.
+- Chỉ câu trả lời của người học trong lộ trình mới làm thay đổi mức nắm vững; việc AI giảng giải (kể cả sơ đồ minh họa trong lời giảng) hay trả lời câu hỏi không làm thay đổi.
 - Mỗi điểm kiến thức có lịch ôn riêng: ôn tốt thì lần ôn sau giãn ra, ôn kém thì gần lại.
 - Bước tiếp theo luôn kèm lý do, ví dụ "ôn điểm này vì đã đến hạn".
 - Câu trắc nghiệm được xáo thứ tự đáp án giữa các lần hỏi.
 
-#### UC04: Làm quiz luyện tập
+#### UC04: Quản lý tài liệu học
 
 **Tác nhân:** Người học.
 
-**Mô tả:** Người học yêu cầu hệ thống sinh một bộ câu hỏi về một chủ đề để tự kiểm tra. Câu trả lời được chấm và kèm giải thích; câu hỏi và kết quả được lưu vào ngân hàng câu hỏi để xem lại. Các ca sử dụng con được thể hiện ở Hình 2.8.
+**Mô tả:** Người học tạo các kho tài liệu và tải tài liệu của mình lên, để AI tra cứu và dẫn nguồn khi trả lời ở các ca sử dụng khác. Các ca sử dụng con được thể hiện ở Hình 2.8.
 
-![Hình 2.8. Biểu đồ ca sử dụng phân rã – Làm quiz luyện tập](images/phan-ra-uc04.png)
+![Hình 2.8. Biểu đồ ca sử dụng phân rã – Quản lý tài liệu học](images/phan-ra-uc04.png)
 
-**Hình 2.8. Biểu đồ ca sử dụng phân rã – Làm quiz luyện tập**
-
-**Hậu điều kiện:** Bộ câu hỏi, câu trả lời của người học và kết quả chấm được lưu vào ngân hàng câu hỏi.
-
-**Bảng 2.6. Luồng cơ bản – Tạo và làm bộ câu hỏi**
-
-| Hành động của người học | Phản ứng của hệ thống |
-|---|---|
-| 1. Chọn chế độ quiz, nhập chủ đề, chọn số câu, độ khó và các loại câu hỏi, rồi gửi. | 2. Sinh bộ câu hỏi theo chủ đề và lựa chọn của người học, dựa trên các nguồn được đính kèm hoặc tìm kiếm web khi cần; hiển thị dần từng câu, mỗi câu kèm đáp án tham khảo và lời giải thích. |
-| 3. Trả lời một câu và chọn kiểm tra. | 4. Chấm câu trả lời: câu có đáp án xác định được so với đáp án; câu trả lời mở được AI đánh giá là đúng, đúng một phần hoặc sai, kèm nhận xét chỗ đúng, chỗ thiếu. |
-| | 5. Hiển thị đáp án tham khảo và lời giải thích; lưu câu trả lời và kết quả vào ngân hàng câu hỏi. |
-| 6. Chuyển sang câu tiếp theo. | 7. Lặp lại từ bước 4 cho tới hết bộ câu hỏi. |
-
-**Luồng thay thế:**
-
-- **Sinh câu hỏi từ tài liệu.** Người học đính kèm kho tài liệu, tệp hoặc sổ ghi chép; câu hỏi được sinh chủ yếu từ các nguồn này.
-- **Trả lời bằng hình ảnh.** Với câu tự luận, người học gửi ảnh chụp bài làm thay cho văn bản.
-- **Hỏi tiếp về một câu.** Người học mở cuộc trò chuyện tiếp nối cho một câu hỏi để hỏi thêm về cách giải.
-- **Xem lại ngân hàng câu hỏi.** Người học tìm kiếm, lọc, sắp xếp câu hỏi đã làm và mở lại cuộc trò chuyện gốc.
-- **Quản lý câu hỏi đã làm.** Từ ngân hàng câu hỏi, người học đánh dấu, gắn nhãn, đánh dấu đã nắm hoặc cần ôn lại, hoặc xóa câu hỏi.
-- **Dùng lại câu hỏi cũ.** Người học đính kèm câu hỏi trong ngân hàng làm nguồn cho một lượt hỏi mới (UC02).
-
-**Quy tắc:**
-
-- Hệ thống hỗ trợ sáu loại câu hỏi: trắc nghiệm, đúng sai, điền vào chỗ trống, trả lời ngắn, tự luận và lập trình.
-- Kết quả làm quiz không làm thay đổi mức nắm vững của lộ trình học (UC03).
-
-#### UC05: Vẽ sơ đồ minh họa
-
-**Tác nhân:** Người học.
-
-**Mô tả:** Người học mô tả một nội dung cần minh họa và nhận lại một sơ đồ hiển thị ngay trong cuộc trò chuyện. Các ca sử dụng con được thể hiện ở Hình 2.9.
-
-![Hình 2.9. Biểu đồ ca sử dụng phân rã – Vẽ sơ đồ minh họa](images/phan-ra-uc05.png)
-
-**Hình 2.9. Biểu đồ ca sử dụng phân rã – Vẽ sơ đồ minh họa**
-
-**Chức năng:**
-
-- **Vẽ sơ đồ từ mô tả.** Người học chọn chế độ vẽ sơ đồ, mô tả nội dung; hệ thống chọn kiểu sơ đồ phù hợp và hiển thị sơ đồ trong cuộc trò chuyện.
-- **Vẽ từ nội dung có sẵn.** Người học đính kèm một bản ghi trong sổ ghi chép hoặc một tài liệu và yêu cầu vẽ sơ đồ từ nội dung đó.
-- **Chỉnh sơ đồ.** Người học yêu cầu sửa sơ đồ ở lượt tiếp theo.
-
-**Quy tắc:**
-
-- Hỗ trợ bốn kiểu sơ đồ: sơ đồ khái niệm, lưu đồ, dòng thời gian và sơ đồ so sánh.
-- Hệ thống chỉ hiển thị sơ đồ hợp lệ; không hiển thị sơ đồ bị lỗi cho người học.
-
-#### UC06: Quản lý tài liệu học
-
-**Tác nhân:** Người học.
-
-**Mô tả:** Người học tạo các kho tài liệu và tải tài liệu của mình lên, để AI tra cứu và dẫn nguồn khi trả lời ở các ca sử dụng khác. Các ca sử dụng con được thể hiện ở Hình 2.10.
-
-![Hình 2.10. Biểu đồ ca sử dụng phân rã – Quản lý tài liệu học](images/phan-ra-uc06.png)
-
-**Hình 2.10. Biểu đồ ca sử dụng phân rã – Quản lý tài liệu học**
+**Hình 2.8. Biểu đồ ca sử dụng phân rã – Quản lý tài liệu học**
 
 **Chức năng:**
 
@@ -293,43 +234,41 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 **Quy tắc:**
 
-- Chỉ nhận tài liệu dạng PDF, văn bản và Markdown; tệp sai định dạng hoặc quá lớn bị từ chối kèm thông báo, các tệp hợp lệ vẫn được xử lý.
+- Chỉ nhận tài liệu dạng PDF, Word (.docx), PowerPoint (.pptx), văn bản và Markdown; tệp sai định dạng hoặc quá lớn bị từ chối kèm thông báo, các tệp hợp lệ vẫn được xử lý.
 - Tài liệu xử lý thất bại được đánh dấu lỗi và cho phép thử lại.
-- Tài liệu trong kho cũng là tài liệu để đọc cùng AI (UC02); xóa một tài liệu thì dữ liệu đọc của tài liệu đó cũng bị xóa.
 
-#### UC07: Ghi chép
+#### UC05: Ghi chép
 
 **Tác nhân:** Người học.
 
-**Mô tả:** Người học lưu những kết quả đáng giữ vào sổ ghi chép để xem lại và dùng lại làm nguồn, và tự soạn tài liệu học với sự hỗ trợ của AI. Các ca sử dụng con được thể hiện ở Hình 2.11.
+**Mô tả:** Người học ghi chép trong quá trình học; AI ghi chép giúp và chỉnh sửa ghi chép theo yêu cầu của người học. Các ghi chép tạo thành sổ ghi chép của người học để xem lại và dùng lại làm nguồn. Các ca sử dụng con được thể hiện ở Hình 2.9.
 
-![Hình 2.11. Biểu đồ ca sử dụng phân rã – Ghi chép](images/phan-ra-uc07.png)
+![Hình 2.9. Biểu đồ ca sử dụng phân rã – Ghi chép](images/phan-ra-uc05.png)
 
-**Hình 2.11. Biểu đồ ca sử dụng phân rã – Ghi chép**
+**Hình 2.9. Biểu đồ ca sử dụng phân rã – Ghi chép**
 
 **Chức năng:**
 
-- **Lưu vào sổ ghi chép.** Từ cuộc trò chuyện, buổi học theo lộ trình hoặc khung đọc tài liệu, người học chọn các tin nhắn cần lưu, chọn sổ (hoặc tạo sổ mới) và đặt tiêu đề; hệ thống tự viết tóm tắt cho bản ghi. Người học cũng có thể nhờ AI lưu bằng lời, ví dụ "tóm tắt rồi lưu vào sổ".
-- **Quản lý sổ và bản ghi.** Tạo, sửa, xóa sổ; tìm bản ghi; sửa, sao chép, chuyển hoặc xóa bản ghi; mở lại cuộc trò chuyện gốc. Từ đây có thể xuất sổ ra tệp Markdown.
-- **Soạn tài liệu.** Tạo tài liệu mới, soạn nội dung Markdown và xem trước.
-- **Ghi chú trong cuộc trò chuyện.** Viết ghi chú ngay trong một cuộc trò chuyện; ghi chú mở lại được trong trình soạn thảo.
-- **Nhờ AI hỗ trợ soạn thảo.** Trong lúc soạn, chọn một đoạn và nhờ AI viết lại, rút gọn, mở rộng hoặc sửa theo mô tả, có thể dựa vào kho tài liệu hoặc web; người học xem đề xuất rồi áp dụng hoặc bỏ qua. AI cũng có thể tự đánh dấu các ý chính.
-- **Lưu tài liệu vào sổ, xuất Markdown.** Lưu tài liệu đang soạn vào sổ ghi chép hoặc xuất ra tệp Markdown.
-- **Dùng lại làm nguồn.** Đính kèm sổ hoặc bản ghi vào lượt hỏi (UC02), hoặc chọn làm nguồn khi tạo lộ trình (UC03).
+- **Ghi chép trong lúc học.** Người học mở ghi chép ngay cạnh cuộc trò chuyện hoặc buổi học theo lộ trình, tự viết nội dung dạng Markdown và xem trước.
+- **Nhờ AI ghi chép.** Trong cuộc trò chuyện hoặc buổi học, người học bảo AI ghi lại một ý hoặc tóm tắt một phần vào ghi chép; AI viết ngắn gọn bằng lời của mình, không chép nguyên văn cuộc trò chuyện.
+- **Nhờ AI chỉnh sửa ghi chép.** Người học bảo AI bổ sung, sửa hoặc sắp xếp lại ghi chép, hoặc chọn một đoạn và nhờ AI viết lại, rút gọn, mở rộng. AI cũng có thể đánh dấu các ý chính.
+- **Quản lý sổ ghi chép.** Xem danh sách ghi chép, tìm, đổi tên và xóa ghi chép. Từ đây có thể xuất ghi chép ra tệp Markdown.
+- **Dùng lại làm nguồn.** Đính kèm ghi chép vào lượt hỏi (UC02), hoặc chọn làm nguồn khi tạo lộ trình (UC03).
 
 **Quy tắc:**
 
-- Khi rời một bản ghi đang sửa mà chưa lưu, hệ thống hỏi người học có bỏ thay đổi hay không.
+- AI chỉ ghi hoặc sửa ghi chép khi người học yêu cầu.
+- Nội dung ghi chép không bị mất khi rời trang giữa chừng.
 
-#### UC08: Quản lý bộ nhớ người học
+#### UC06: Quản lý bộ nhớ người học
 
 **Tác nhân:** Người học.
 
-**Mô tả:** Hệ thống tự ghi nhớ thông tin về người học qua các buổi học, như những gì đã học, mục tiêu và cách học ưa thích, để AI điều chỉnh cách hỗ trợ ở những lần sau. Người học kiểm soát được những gì hệ thống ghi nhớ. Các ca sử dụng con được thể hiện ở Hình 2.12.
+**Mô tả:** Hệ thống tự ghi nhớ thông tin về người học qua các buổi học, như những gì đã học, mục tiêu và cách học ưa thích, để AI điều chỉnh cách hỗ trợ ở những lần sau. Người học kiểm soát được những gì hệ thống ghi nhớ. Các ca sử dụng con được thể hiện ở Hình 2.10.
 
-![Hình 2.12. Biểu đồ ca sử dụng phân rã – Quản lý bộ nhớ người học](images/phan-ra-uc08.png)
+![Hình 2.10. Biểu đồ ca sử dụng phân rã – Quản lý bộ nhớ người học](images/phan-ra-uc06.png)
 
-**Hình 2.12. Biểu đồ ca sử dụng phân rã – Quản lý bộ nhớ người học**
+**Hình 2.10. Biểu đồ ca sử dụng phân rã – Quản lý bộ nhớ người học**
 
 **Chức năng:**
 
@@ -345,15 +284,15 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 - Bộ nhớ dùng chung cho mọi không gian học của người học.
 - Thông tin người học khai khi lập dàn ý một lộ trình (kiến thức đã có, mức độ muốn đạt, thời gian) thuộc về lộ trình đó (UC03).
 
-#### UC09: Quản lý không gian học
+#### UC07: Quản lý không gian học
 
 **Tác nhân:** Người học.
 
-**Mô tả:** Người học tạo các không gian học, ví dụ mỗi môn học một không gian, để cuộc trò chuyện, lộ trình, tài liệu và ghi chép của cùng một chủ đề nằm cùng nhau. Các ca sử dụng con được thể hiện ở Hình 2.13.
+**Mô tả:** Người học tạo các không gian học, ví dụ mỗi môn học một không gian, để cuộc trò chuyện, lộ trình, tài liệu và ghi chép của cùng một chủ đề nằm cùng nhau. Các ca sử dụng con được thể hiện ở Hình 2.11.
 
-![Hình 2.13. Biểu đồ ca sử dụng phân rã – Quản lý không gian học](images/phan-ra-uc09.png)
+![Hình 2.11. Biểu đồ ca sử dụng phân rã – Quản lý không gian học](images/phan-ra-uc07.png)
 
-**Hình 2.13. Biểu đồ ca sử dụng phân rã – Quản lý không gian học**
+**Hình 2.11. Biểu đồ ca sử dụng phân rã – Quản lý không gian học**
 
 **Chức năng:**
 
@@ -365,18 +304,18 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 - Nội dung được tạo ở không gian nào thì thuộc không gian đó; khi không chọn, nội dung thuộc không gian mặc định.
 - Một cuộc trò chuyện đã có tin nhắn thì không đổi sang không gian khác.
-- Các trang xem lại (sổ ghi chép, ngân hàng câu hỏi, lịch sử trò chuyện) luôn cho biết đang hiển thị nội dung của không gian nào.
+- Các trang xem lại (sổ ghi chép, lịch sử trò chuyện) luôn cho biết đang hiển thị nội dung của không gian nào.
 - Tên không gian không được để trống.
 
-#### UC10: Quản trị hệ thống
+#### UC08: Quản trị hệ thống
 
 **Tác nhân:** Quản trị viên.
 
-**Mô tả:** Quản trị viên tạo, xóa tài khoản cho người dùng khác và cấu hình mô hình AI dùng chung cho cả hệ thống. Các ca sử dụng con được thể hiện ở Hình 2.14.
+**Mô tả:** Quản trị viên tạo, xóa tài khoản cho người dùng khác và cấu hình mô hình AI dùng chung cho cả hệ thống. Các ca sử dụng con được thể hiện ở Hình 2.12.
 
-![Hình 2.14. Biểu đồ ca sử dụng phân rã – Quản trị hệ thống](images/phan-ra-uc10.png)
+![Hình 2.12. Biểu đồ ca sử dụng phân rã – Quản trị hệ thống](images/phan-ra-uc08.png)
 
-**Hình 2.14. Biểu đồ ca sử dụng phân rã – Quản trị hệ thống**
+**Hình 2.12. Biểu đồ ca sử dụng phân rã – Quản trị hệ thống**
 
 **Chức năng:**
 
@@ -402,4 +341,4 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 ## 2.4. Tổng kết chương
 
-Chương này đã khảo sát bài toán xây dựng một không gian học tập AI cá nhân hóa, xác định ba tác nhân và đặc tả mười ca sử dụng, trong đó học theo lộ trình là ca sử dụng trọng tâm. Các yêu cầu phi chức năng về bảo mật, tính nhất quán của việc đánh giá, độ tin cậy và khả năng thay thế thành phần cũng đã được nêu. Chương tiếp theo trình bày thiết kế hệ thống đáp ứng các yêu cầu này.
+Chương này đã khảo sát bài toán xây dựng một không gian học tập AI cá nhân hóa, xác định ba tác nhân và đặc tả tám ca sử dụng, trong đó học theo lộ trình là ca sử dụng trọng tâm. Các yêu cầu phi chức năng về bảo mật, tính nhất quán của việc đánh giá, độ tin cậy và khả năng thay thế thành phần cũng đã được nêu. Chương tiếp theo trình bày thiết kế hệ thống đáp ứng các yêu cầu này.
