@@ -20,24 +20,18 @@ nhận việc giảng giải và đặt câu hỏi.
 - **Ôn tập theo lịch:** hệ thống tự xếp lịch và nhắc ôn những điểm đã học khi
   đến hạn.
 
-**Hỏi đáp và luyện tập tự do**
+**Hỏi đáp tự do**
 
 - **Hỏi đáp với AI:** đặt câu hỏi, nhận giải thích, trao đổi nhiều lượt; AI tra
   cứu tài liệu của người học hoặc tìm trên web khi cần.
-- **Đọc tài liệu cùng AI:** mở tài liệu cạnh khung chat, hỏi về chỗ đang đọc,
-  nhận câu trả lời dẫn đến đúng vị trí trong tài liệu.
-- **Làm quiz luyện tập:** sinh bộ câu hỏi theo chủ đề và độ khó, làm bài, xem
-  kết quả và giải thích; câu đã làm được lưu vào ngân hàng câu hỏi để xem lại.
-- **Vẽ sơ đồ minh họa:** tạo sơ đồ khái niệm, lưu đồ, dòng thời gian.
 
 **Tài liệu và ghi chép**
 
-- **Kho tài liệu:** tải lên và sắp xếp tài liệu học (PDF, văn bản, Markdown) để
+- **Kho tài liệu:** tải lên và sắp xếp tài liệu học để
   AI tra cứu và dẫn nguồn khi trả lời.
-- **Sổ ghi chép:** lưu những kết quả đáng giữ từ các hoạt động học và đính kèm
-  lại vào hoạt động khác.
-- **Soạn thảo có AI hỗ trợ:** tự viết tài liệu học, nhờ AI chỉnh sửa, xuất ra
-  Markdown.
+- **Ghi chép trong lúc học:** tự ghi chép trong lúc hỏi đáp hay học theo lộ trình,
+  nhờ AI ghi giúp hoặc sửa lại; các ghi chép tạo thành sổ ghi chép để xem lại và
+  dùng làm nguồn cho việc học sau.
 
 **Cá nhân hóa và tổ chức**
 
@@ -65,8 +59,3 @@ Một số thành phần được phát triển từ mã nguồn mở theo Apach
 và đã được sửa đổi.
 
 -->
-
-<!-- GHI NHỚ:
-Nếu dùng lại code mà DeepTutor lấy của bên thứ ba có giấy phép riêng,
-ví dụ web/vendor/thinking-orbs/ (MIT), thì giữ kèm file LICENSE của phần đó.
- -->
