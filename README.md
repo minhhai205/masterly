@@ -27,9 +27,9 @@ nhận việc giảng giải và đặt câu hỏi.
 
 **Tài liệu và ghi chép**
 
-- **Kho tài liệu:** tải lên và sắp xếp tài liệu học (PDF, Word, PowerPoint, văn bản, Markdown) để
+- **Kho tài liệu:** tải lên và sắp xếp tài liệu học để
   AI tra cứu và dẫn nguồn khi trả lời.
-- **Ghi chép trong lúc học:** ghi chép ngay cạnh cuộc trò chuyện hay buổi học,
+- **Ghi chép trong lúc học:** tự ghi chép trong lúc hỏi đáp hay học theo lộ trình,
   nhờ AI ghi giúp hoặc sửa lại; các ghi chép tạo thành sổ ghi chép để xem lại và
   dùng làm nguồn cho việc học sau.
 

@@ -36,11 +36,11 @@ Bên cạnh quy trình này, người học hỏi đáp tự do với AI khi c�
 
 ### 2.1.3. Phạm vi hệ thống
 
-Hệ thống là một ứng dụng web, mỗi người dùng có tài khoản và dữ liệu riêng. Việc sinh câu trả lời, xử lý tài liệu để tra cứu và tìm kiếm trên web do các dịch vụ AI bên ngoài đảm nhận; hệ thống không tự huấn luyện hay vận hành mô hình ngôn ngữ. Hệ thống làm việc với tài liệu dạng PDF, Word, PowerPoint, văn bản và Markdown.
+Hệ thống là một ứng dụng web, mỗi người dùng có tài khoản và dữ liệu riêng. Việc sinh câu trả lời, xử lý tài liệu để tra cứu và tìm kiếm trên web do các dịch vụ AI bên ngoài đảm nhận; hệ thống không tự huấn luyện hay vận hành mô hình ngôn ngữ.
 
-Các nội dung sau nằm ngoài phạm vi: học qua video và âm thanh, sinh ảnh và video, tương tác bằng giọng nói, sách do AI viết, tài liệu Excel, ứng dụng di động, tổ chức và lớp học, phân quyền nhiều cấp.
+Các nội dung sau nằm ngoài phạm vi: học qua video và âm thanh, sinh ảnh và video, tương tác bằng giọng nói, sách do AI viết, ứng dụng di động, tổ chức và lớp học, phân quyền nhiều cấp.
 
-Hình 2.2 cho thấy các khối chức năng trong phạm vi hệ thống và liên kết giữa chúng: mọi nội dung học được tổ chức theo không gian học; tài liệu là nguồn cho việc học, kết quả học được lưu thành ghi chép để dùng lại; hoạt động học giúp hệ thống ghi nhớ về người học, và bộ nhớ đó quay lại cá nhân hóa việc học.
+Hình 2.2 cho thấy các khối chức năng trong phạm vi hệ thống và liên kết giữa chúng: học theo lộ trình là phần lõi; trong mỗi không gian học, kho tài liệu là nguồn tra cứu cho cả hỏi đáp và lộ trình, người học ghi chép trong buổi học và ghi chép lại là nguồn tra cứu cho lộ trình; bộ nhớ người học dùng chung cho mọi không gian học, nhận dữ liệu học tập và quay lại cá nhân hóa câu trả lời của AI; phần nền gồm tài khoản, quản trị và các dịch vụ AI bên ngoài.
 
 ![Hình 2.2. Sơ đồ tổng quan các khối chức năng của hệ thống](images/hinh-tong-quan-he-thong.drawio.png)
 
@@ -234,7 +234,6 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 **Quy tắc:**
 
-- Chỉ nhận tài liệu dạng PDF, Word (.docx), PowerPoint (.pptx), văn bản và Markdown; tệp sai định dạng hoặc quá lớn bị từ chối kèm thông báo, các tệp hợp lệ vẫn được xử lý.
 - Tài liệu xử lý thất bại được đánh dấu lỗi và cho phép thử lại.
 
 #### UC05: Ghi chép
@@ -249,7 +248,7 @@ Mỗi ca sử dụng có một biểu đồ ca sử dụng phân rã thể hiệ
 
 **Chức năng:**
 
-- **Ghi chép trong lúc học.** Người học mở ghi chép ngay cạnh cuộc trò chuyện hoặc buổi học theo lộ trình, tự viết nội dung dạng Markdown và xem trước.
+- **Ghi chép trong lúc học.** Trong lúc hỏi đáp hoặc học theo lộ trình, người học mở phần ghi chép, tự viết nội dung dạng Markdown và xem trước.
 - **Nhờ AI ghi chép.** Trong cuộc trò chuyện hoặc buổi học, người học bảo AI ghi lại một ý hoặc tóm tắt một phần vào ghi chép; AI viết ngắn gọn bằng lời của mình, không chép nguyên văn cuộc trò chuyện.
 - **Nhờ AI chỉnh sửa ghi chép.** Người học bảo AI bổ sung, sửa hoặc sắp xếp lại ghi chép, hoặc chọn một đoạn và nhờ AI viết lại, rút gọn, mở rộng. AI cũng có thể đánh dấu các ý chính.
 - **Quản lý sổ ghi chép.** Xem danh sách ghi chép, tìm, đổi tên và xóa ghi chép. Từ đây có thể xuất ghi chép ra tệp Markdown.
