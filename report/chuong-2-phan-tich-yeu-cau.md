@@ -87,5 +87,3 @@ Quy trình học theo lộ trình:
 - Ứng dụng web, giao diện tiếng Việt và tiếng Anh.
 - Mỗi người dùng có tài khoản và dữ liệu riêng; tài khoản do quản trị viên cấp, không có tự đăng ký.
 - Việc sinh câu trả lời, xử lý tài liệu và tìm kiếm web dùng dịch vụ AI bên ngoài; hệ thống không tự huấn luyện mô hình.
-
-Ngoài phạm vi: học qua video và âm thanh, sinh ảnh và video, tương tác bằng giọng nói, sách do AI viết, ứng dụng di động, tổ chức và lớp học, phân quyền nhiều cấp.
