@@ -87,3 +87,46 @@ Quy trình học theo lộ trình:
 - Ứng dụng web, giao diện tiếng Việt và tiếng Anh.
 - Mỗi người dùng có tài khoản và dữ liệu riêng; tài khoản do quản trị viên cấp, không có tự đăng ký.
 - Việc sinh câu trả lời, xử lý tài liệu và tìm kiếm web dùng dịch vụ AI bên ngoài; hệ thống không tự huấn luyện mô hình.
+
+## 2.2. Yêu cầu chức năng
+
+### 2.2.1. Xác định các tác nhân
+
+Hệ thống có hai tác nhân, đều là người dùng có tài khoản do quản trị viên cấp. Các dịch vụ bên ngoài mà hệ thống kết nối tới không phải tác nhân.
+
+**Bảng 2.2. Danh sách các tác nhân của hệ thống**
+
+| STT | Tác nhân | Mô tả |
+|---|---|---|
+| 1 | Người học | Người dùng các chức năng học tập trên dữ liệu của riêng mình. |
+| 2 | Quản trị viên | Người học có thêm quyền quản lý tài khoản và cấu hình các dịch vụ bên ngoài dùng chung. Hệ thống có một quản trị viên. |
+
+### 2.2.2. Biểu đồ ca sử dụng tổng quát
+
+Các ca sử dụng được chia thành ba nhóm (Hình 2.2):
+
+- Học theo lộ trình: phần lõi của hệ thống.
+- Hỗ trợ học tập: các chức năng phục vụ việc học, gồm hỏi đáp, tài liệu, ghi chép, bộ nhớ và không gian học.
+- Quản trị hệ thống: phần nền để hệ thống hoạt động.
+
+Người học dùng các ca sử dụng của hai nhóm đầu. Quản trị viên có toàn bộ ca sử dụng của người học, thêm cấp và thu hồi tài khoản, cấu hình dịch vụ bên ngoài.
+
+![Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly](images/ca-su-dung-tong-quat.png)
+
+**Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly**
+
+**Bảng 2.3. Danh sách các ca sử dụng của hệ thống**
+
+| Nhóm | Mã | Tên ca sử dụng | Tác nhân |
+|---|---|---|---|
+| 1. Học theo lộ trình | UC1.1 | Lập lộ trình | Người học |
+| | UC1.2 | Học một điểm kiến thức | Người học |
+| | UC1.3 | Ôn tập theo lịch | Người học |
+| | UC1.4 | Theo dõi tiến độ lộ trình | Người học |
+| 2. Hỗ trợ học tập | UC2.1 | Trò chuyện với AI | Người học |
+| | UC2.2 | Tải lên và sắp xếp tài liệu học | Người học |
+| | UC2.3 | Ghi chép trong lúc học | Người học |
+| | UC2.4 | Điều chỉnh bộ nhớ người học | Người học |
+| | UC2.5 | Tổ chức không gian học | Người học |
+| 3. Quản trị hệ thống | UC3.1 | Cấp và thu hồi tài khoản | Quản trị viên |
+| | UC3.2 | Cấu hình dịch vụ bên ngoài | Quản trị viên |
