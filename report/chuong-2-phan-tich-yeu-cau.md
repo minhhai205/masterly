@@ -130,3 +130,124 @@ Người học dùng các ca sử dụng của hai nhóm đầu. Quản trị vi
 | | UC2.5 | Tổ chức không gian học | Người học |
 | 3. Quản trị hệ thống | UC3.1 | Cấp và thu hồi tài khoản | Quản trị viên |
 | | UC3.2 | Cấu hình dịch vụ bên ngoài | Quản trị viên |
+
+### 2.2.3. Đặc tả các ca sử dụng
+
+#### UC1.1 - Lập lộ trình
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.3 mô tả ca sử dụng người học nêu mục tiêu học, trao đổi với gia sư AI và chốt dàn ý thành một lộ trình gồm các điểm kiến thức.
+
+![Hình 2.3. Biểu đồ ca sử dụng UC1.1 - Lập lộ trình](images/uc1-1-lap-lo-trinh.png)
+
+**Hình 2.3. Biểu đồ ca sử dụng UC1.1 - Lập lộ trình**
+
+Luồng cơ bản: luồng bắt đầu khi người học chọn tạo lộ trình mới và kết thúc khi lộ trình được lưu.
+
+**Bảng 2.4. Luồng cơ bản của UC1.1**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Chọn tạo lộ trình mới và nêu mục tiêu học. | 2. Gia sư AI hỏi về kiến thức đã có, mức muốn đạt và thời gian có. | Mục tiêu học |
+| 3. Trả lời các câu hỏi của gia sư. | 4. Gia sư AI đề xuất dàn ý gồm các điểm kiến thức theo thứ tự học. | Kiến thức đã có, mức muốn đạt, thời gian có; dàn ý |
+| 5. Đồng ý và chốt dàn ý. | 6. Lưu lộ trình và hiển thị lộ trình vừa tạo. | Lộ trình gồm các điểm kiến thức |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Chọn nguồn cho lộ trình): tại bước 1, người học chọn thêm tài liệu, ghi chép hoặc cuộc trò chuyện cũ làm nguồn. Gia sư dựa vào các nguồn này khi hỏi và đề xuất dàn ý.
+- Luồng thay thế 2 (Chỉnh sửa dàn ý): tại bước 5, người học yêu cầu thêm, bớt hoặc đổi thứ tự các điểm kiến thức. Hệ thống quay lại bước 4 với dàn ý đã chỉnh.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Lộ trình được lưu trong không gian học hiện tại, sẵn sàng để học điểm kiến thức đầu tiên.
+
+#### UC1.2 - Học một điểm kiến thức
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.4 mô tả ca sử dụng người học học một điểm kiến thức trong lộ trình: gia sư AI giảng giải và đặt câu hỏi, hệ thống đánh giá câu trả lời và xét người học đã nắm vững hay chưa. Việc xét nắm vững dựa trên kết quả làm bài qua nhiều câu hỏi; một lần trả lời đúng chưa đủ để coi là nắm vững.
+
+![Hình 2.4. Biểu đồ ca sử dụng UC1.2 - Học một điểm kiến thức](images/uc1-2-hoc-mot-diem-kien-thuc.png)
+
+**Hình 2.4. Biểu đồ ca sử dụng UC1.2 - Học một điểm kiến thức**
+
+Luồng cơ bản: luồng bắt đầu khi người học chốt xong dàn ý và bắt đầu học, hoặc tiếp tục một lộ trình đang học dở; kết thúc khi điểm kiến thức được đánh dấu đã nắm vững.
+
+**Bảng 2.5. Luồng cơ bản của UC1.2**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Bắt đầu học sau khi chốt dàn ý, hoặc tiếp tục học ở lộ trình đang dở. | 2. Chọn điểm kiến thức cần học và cho biết lý do chọn. | Điểm kiến thức cần học |
+| | 3. Gia sư AI giảng giải điểm kiến thức rồi đặt câu hỏi. | Câu hỏi |
+| 4. Trả lời câu hỏi. | 5. Đánh giá câu trả lời, cho biết kết quả kèm giải thích và cập nhật mức nắm vững. | Câu trả lời, kết quả đánh giá, mức nắm vững |
+| | 6. Nếu người học chưa nắm vững, quay lại bước 3: gia sư giảng thêm phần còn sai và đặt câu hỏi khác. | |
+| | 7. Đánh dấu điểm kiến thức đã nắm vững và xếp lịch ôn. | Trạng thái nắm vững, lịch ôn |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Bỏ qua hoặc hoãn điểm kiến thức): tại bước 2 hoặc 4, người học chọn bỏ qua hoặc hoãn điểm kiến thức đang học. Hệ thống chuyển sang điểm khác; điểm bị hoãn không được tính là nắm vững và được chọn lại khi các điểm khác đã học xong.
+
+Tiền điều kiện: Người học đã đăng nhập và đã có lộ trình.
+
+Hậu điều kiện: Kết quả làm bài và mức nắm vững của điểm kiến thức được lưu; điểm đã nắm vững được xếp lịch ôn.
+
+#### UC1.3 - Ôn tập theo lịch
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.5 mô tả ca sử dụng người học ôn lại các điểm kiến thức đã nắm vững khi đến hạn ôn. Điểm trả lời đúng được giãn lịch ôn, điểm trả lời sai được ôn lại sớm hơn.
+
+![Hình 2.5. Biểu đồ ca sử dụng UC1.3 - Ôn tập theo lịch](images/uc1-3-on-tap-theo-lich.png)
+
+**Hình 2.5. Biểu đồ ca sử dụng UC1.3 - Ôn tập theo lịch**
+
+Luồng cơ bản: luồng bắt đầu khi người học chọn ôn tập lúc lộ trình có điểm đến hạn ôn và kết thúc khi đã ôn hết các điểm đến hạn.
+
+**Bảng 2.6. Luồng cơ bản của UC1.3**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Chọn ôn tập khi lộ trình báo có điểm đến hạn ôn. | 2. Chọn điểm đến hạn cần ôn trước. | Các điểm đến hạn ôn |
+| | 3. Gia sư AI đặt câu hỏi ôn về điểm kiến thức đó. | Câu hỏi |
+| 4. Trả lời câu hỏi. | 5. Đánh giá câu trả lời, cho biết kết quả và cập nhật mức nắm vững cùng lịch ôn tiếp theo. | Câu trả lời, kết quả đánh giá, mức nắm vững, lịch ôn |
+| | 6. Lặp lại bước 3–5 với các điểm đến hạn còn lại. | |
+| | 7. Báo đã ôn xong và cho biết lần ôn tiếp theo. | |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Ôn trước hạn): tại bước 1, người học xem kế hoạch ôn gồm các điểm đã nắm vững và thời điểm ôn tiếp theo, rồi chọn ôn một điểm chưa đến hạn. Hệ thống ôn điểm đó theo các bước 3–5.
+- Luồng thay thế 2 (Ôn trong lúc học): khi người học đang học theo lộ trình (UC1.2) mà có điểm đến hạn ôn, hệ thống ưu tiên ôn điểm đó trước khi chuyển sang điểm kiến thức mới.
+
+Tiền điều kiện: Người học đã đăng nhập và lộ trình có điểm kiến thức đã nắm vững.
+
+Hậu điều kiện: Kết quả ôn được lưu; mức nắm vững và lịch ôn tiếp theo của các điểm đã ôn được cập nhật.
+
+#### UC1.4 - Theo dõi tiến độ lộ trình
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.6 mô tả ca sử dụng người học xem tiến độ của các lộ trình: điểm kiến thức nào đã nắm vững, nên học hoặc ôn gì tiếp theo và vì sao.
+
+![Hình 2.6. Biểu đồ ca sử dụng UC1.4 - Theo dõi tiến độ lộ trình](images/uc1-4-theo-doi-tien-do-lo-trinh.png)
+
+**Hình 2.6. Biểu đồ ca sử dụng UC1.4 - Theo dõi tiến độ lộ trình**
+
+Luồng cơ bản: luồng bắt đầu khi người học mở danh sách lộ trình và kết thúc khi hệ thống hiển thị tiến độ của lộ trình được chọn.
+
+**Bảng 2.7. Luồng cơ bản của UC1.4**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở danh sách lộ trình. | 2. Hiển thị các lộ trình, mỗi lộ trình kèm số điểm kiến thức đã nắm vững trên tổng số. | Danh sách lộ trình |
+| 3. Chọn một lộ trình. | 4. Hiển thị các điểm kiến thức theo thứ tự học, mỗi điểm kèm trạng thái chưa học, đang học hoặc đã nắm vững. | Điểm kiến thức, trạng thái nắm vững |
+| | 5. Cho biết việc nên làm tiếp theo kèm lý do: học điểm kiến thức nào hoặc ôn điểm nào. | Lịch ôn |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Xem chi tiết điểm kiến thức): tại bước 4, người học chọn một điểm kiến thức. Hệ thống hiển thị kết quả các lần làm bài, mức nắm vững và lịch ôn của điểm đó.
+- Luồng thay thế 2 (Chỉnh mức ghi nhớ mong muốn): tại bước 5, người học chọn mức ghi nhớ mong muốn cho lộ trình. Hệ thống lưu lại và xếp lại lịch ôn; mức càng cao thì lịch ôn càng dày.
+
+Tiền điều kiện: Người học đã đăng nhập và đã có ít nhất một lộ trình.
+
+Hậu điều kiện: Người học nắm được tiến độ của lộ trình; nếu đã chỉnh mức ghi nhớ mong muốn, lịch ôn được xếp lại theo mức mới.
