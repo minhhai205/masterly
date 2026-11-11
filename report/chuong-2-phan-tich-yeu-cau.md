@@ -251,3 +251,63 @@ Luồng thay thế:
 Tiền điều kiện: Người học đã đăng nhập và đã có ít nhất một lộ trình.
 
 Hậu điều kiện: Người học nắm được tiến độ của lộ trình; nếu đã chỉnh mức ghi nhớ mong muốn, lịch ôn được xếp lại theo mức mới.
+
+#### UC2.1 - Trò chuyện với AI
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.7 mô tả ca sử dụng người học hỏi đáp tự do với AI, có thể dựa trên tài liệu của mình hoặc thông tin trên web. Cuộc trò chuyện được lưu lại để xem và hỏi tiếp sau.
+
+![Hình 2.7. Biểu đồ ca sử dụng UC2.1 - Trò chuyện với AI](images/uc2-1-tro-chuyen-voi-ai.png)
+
+**Hình 2.7. Biểu đồ ca sử dụng UC2.1 - Trò chuyện với AI**
+
+Luồng cơ bản: luồng bắt đầu khi người học tạo cuộc trò chuyện mới và kết thúc khi người học ngừng hỏi.
+
+**Bảng 2.8. Luồng cơ bản của UC2.1**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Tạo cuộc trò chuyện mới và nhập câu hỏi. | 2. AI trả lời; câu trả lời hiện dần trên màn hình. | Câu hỏi, câu trả lời |
+| 3. Hỏi tiếp. | 4. AI trả lời dựa trên nội dung đã trao đổi trong cuộc trò chuyện. | Câu hỏi, câu trả lời |
+| | 5. Lưu cuộc trò chuyện vào không gian học hiện tại. | Cuộc trò chuyện |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Đính kèm tài liệu): tại bước 1 hoặc 3, người học đính kèm tệp hoặc chọn một kho tài liệu đã tải lên (UC2.2). AI trả lời dựa trên tài liệu đó và dẫn nguồn đến phần nội dung đã dùng.
+- Luồng thay thế 2 (Tìm kiếm web): tại bước 2 hoặc 4, khi câu hỏi cần thông tin không có trong cuộc trò chuyện hay tài liệu, AI tự tìm trên web và trả lời kèm đường dẫn nguồn.
+- Luồng thay thế 3 (Tiếp tục cuộc trò chuyện cũ): tại bước 1, người học mở một cuộc trò chuyện trong lịch sử thay vì tạo mới. Hệ thống tải lại toàn bộ nội dung và người học hỏi tiếp từ đó.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Cuộc trò chuyện được lưu trong không gian học hiện tại và có thể mở lại sau.
+
+#### UC2.2 - Tải lên và sắp xếp tài liệu học
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.8 mô tả ca sử dụng người học đưa tài liệu học của mình lên hệ thống và sắp xếp theo kho, để AI dùng khi trò chuyện (UC2.1) và khi lập lộ trình (UC1.1).
+
+![Hình 2.8. Biểu đồ ca sử dụng UC2.2 - Tải lên và sắp xếp tài liệu học](images/uc2-2-tai-len-va-sap-xep-tai-lieu.png)
+
+**Hình 2.8. Biểu đồ ca sử dụng UC2.2 - Tải lên và sắp xếp tài liệu học**
+
+Luồng cơ bản: luồng bắt đầu khi người học mở một kho tài liệu và kết thúc khi tài liệu tải lên đã được xử lý xong.
+
+**Bảng 2.9. Luồng cơ bản của UC2.2**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở một kho tài liệu; mỗi người học có sẵn một kho mặc định. | 2. Hiển thị các tài liệu trong kho, mỗi tài liệu kèm trạng thái xử lý. | Danh sách tài liệu |
+| 3. Chọn tệp để tải lên. | 4. Tải tệp lên, xử lý nội dung và hiển thị tiến độ xử lý. | Tệp tài liệu, trạng thái xử lý |
+| | 5. Báo tài liệu đã sẵn sàng để AI dùng. | Tài liệu đã xử lý |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Tạo kho tài liệu): tại bước 1, người học tạo một kho mới, ví dụ mỗi môn học một kho. Hệ thống tạo kho trong không gian học hiện tại và mở kho đó.
+- Luồng thay thế 2 (Xóa tài liệu): tại bước 2, người học chọn xóa một tài liệu và xác nhận. Hệ thống xóa tài liệu khỏi kho; AI không còn dùng tài liệu này khi trả lời.
+- Luồng thay thế 3 (Thử lại khi xử lý lỗi): tại bước 4, nếu tài liệu không xử lý được, ví dụ tệp bị hỏng, hệ thống báo lỗi ở tài liệu đó. Người học chọn thử lại hoặc xóa tài liệu.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Tài liệu được lưu trong kho và xử lý xong, sẵn sàng để AI dùng khi trò chuyện và khi lập lộ trình.
