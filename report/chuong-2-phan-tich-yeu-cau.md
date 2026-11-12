@@ -397,3 +397,61 @@ Luồng thay thế:
 Tiền điều kiện: Người học đã đăng nhập.
 
 Hậu điều kiện: Không gian học được tạo hoặc thay đổi; các nội dung học mới được lưu vào không gian đang chọn.
+
+#### UC3.1 - Cấp và thu hồi tài khoản
+
+Tác nhân chính: Quản trị viên.
+
+Mô tả tóm lược: Hình 2.12 mô tả ca sử dụng quản trị viên cấp tài khoản cho người học mới và thu hồi tài khoản không còn dùng. Người học không tự đăng ký mà đăng nhập bằng tài khoản được cấp.
+
+![Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản](images/uc3-1-cap-va-thu-hoi-tai-khoan.png)
+
+**Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản**
+
+Luồng cơ bản: luồng bắt đầu khi quản trị viên mở trang quản lý tài khoản và kết thúc khi tài khoản mới được tạo.
+
+**Bảng 2.13. Luồng cơ bản của UC3.1**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở trang quản lý tài khoản. | 2. Hiển thị danh sách, thông tin các tài khoản. | Danh sách tài khoản |
+| 3. Chọn cấp tài khoản mới, nhập tên đăng nhập và mật khẩu. | 4. Kiểm tra thông tin hợp lệ rồi tạo tài khoản; tài khoản mới dùng được ngay các dịch vụ bên ngoài đã cấu hình. | Tên đăng nhập, mật khẩu |
+| | 5. Báo đã tạo và thêm tài khoản vào danh sách. | Tài khoản |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Thu hồi tài khoản): tại bước 3, quản trị viên chọn thu hồi một tài khoản và xác nhận. Hệ thống xóa tài khoản đó; người dùng đó không đăng nhập được nữa. Quản trị viên không thu hồi được tài khoản của chính mình.
+- Luồng thay thế 2 (Tên đăng nhập đã tồn tại): tại bước 4, nếu tên đăng nhập đã có người dùng, hệ thống báo lỗi và yêu cầu nhập tên khác.
+
+Tiền điều kiện: Quản trị viên đã đăng nhập.
+
+Hậu điều kiện: Tài khoản mới đăng nhập được ngay; tài khoản bị thu hồi không đăng nhập được nữa.
+
+#### UC3.2 - Cấu hình dịch vụ bên ngoài
+
+Tác nhân chính: Quản trị viên.
+
+Mô tả tóm lược: Hình 2.13 mô tả ca sử dụng quản trị viên khai báo các dịch vụ AI bên ngoài và chọn mô hình dùng chung cho cả hệ thống. Có ba dịch vụ: mô hình ngôn ngữ lớn (LLM) để trả lời câu hỏi, mô hình nhúng (embedding) để xử lý tài liệu, và dịch vụ tìm kiếm web. Chỉ quản trị viên thấy và sửa được phần cấu hình này.
+
+![Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài](images/uc3-2-cau-hinh-dich-vu-ben-ngoai.png)
+
+**Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài**
+
+Luồng cơ bản: luồng bắt đầu khi quản trị viên mở trang cấu hình dịch vụ và kết thúc khi đã chọn mô hình cho các dịch vụ.
+
+**Bảng 2.14. Luồng cơ bản của UC3.2**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở trang cấu hình dịch vụ. | 2. Hiển thị các nhà cung cấp đã khai báo và mô hình đang dùng cho từng dịch vụ. | Nhà cung cấp, mô hình đang dùng |
+| 3. Thêm nhà cung cấp, nhập địa chỉ và khóa truy cập. | 4. Lưu thông tin; khóa truy cập chỉ hiện một phần. | Nhà cung cấp, khóa truy cập |
+| 5. Chọn kiểm tra kết nối. | 6. Gửi thử yêu cầu tới nhà cung cấp và báo kết quả. | Kết quả kiểm tra |
+| 7. Chọn mô hình cho từng dịch vụ. | 8. Lưu lựa chọn; mọi người dùng dùng mô hình mới từ lượt tiếp theo. | Mô hình của từng dịch vụ |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Kết nối không thành công): tại bước 6, nếu không kết nối được, ví dụ khóa truy cập sai, hệ thống báo lỗi kèm lý do. Quản trị viên sửa thông tin rồi kiểm tra lại.
+
+Tiền điều kiện: Quản trị viên đã đăng nhập.
+
+Hậu điều kiện: Các dịch vụ bên ngoài được cấu hình và kiểm tra; mọi người dùng dùng chung cấu hình này.
