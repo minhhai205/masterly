@@ -368,3 +368,32 @@ Luồng thay thế:
 Tiền điều kiện: Người học đã đăng nhập.
 
 Hậu điều kiện: Thay đổi được lưu; AI dùng bộ nhớ đã điều chỉnh ở các lượt trò chuyện và buổi học sau.
+
+#### UC2.5 - Tổ chức không gian học
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.11 mô tả ca sử dụng người học chia việc học thành các không gian học, ví dụ mỗi môn học một không gian. Cuộc trò chuyện, lộ trình, kho tài liệu và ghi chép được lưu theo không gian học đang chọn, nên nội dung các môn không lẫn vào nhau.
+
+![Hình 2.11. Biểu đồ ca sử dụng UC2.5 - Tổ chức không gian học](images/uc2-5-to-chuc-khong-gian-hoc.png)
+
+**Hình 2.11. Biểu đồ ca sử dụng UC2.5 - Tổ chức không gian học**
+
+Luồng cơ bản: luồng bắt đầu khi người học mở danh sách không gian học và kết thúc khi người học đang làm việc trong không gian vừa tạo.
+
+**Bảng 2.12. Luồng cơ bản của UC2.5**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở danh sách không gian học. | 2. Hiển thị các không gian học; mỗi người học có sẵn một không gian mặc định. | Danh sách không gian học |
+| 3. Tạo không gian học mới và đặt tên. | 4. Tạo không gian và chuyển sang không gian đó. | Không gian học |
+| 5. Trò chuyện, lập lộ trình hoặc tải tài liệu lên. | 6. Lưu các nội dung mới vào không gian đang chọn. | |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Chuyển không gian học): tại bước 3, người học chọn một không gian đã có thay vì tạo mới. Hệ thống chuyển sang không gian đó và chỉ hiển thị nội dung của không gian này.
+- Luồng thay thế 2 (Lưu trữ không gian học): tại bước 2, người học lưu trữ một không gian không còn dùng. Nội dung vẫn được giữ nhưng không thêm được nội dung mới; người học có thể khôi phục lại khi cần. Không gian mặc định không lưu trữ được.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Không gian học được tạo hoặc thay đổi; các nội dung học mới được lưu vào không gian đang chọn.
