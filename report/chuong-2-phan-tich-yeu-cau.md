@@ -455,3 +455,41 @@ Luồng thay thế:
 Tiền điều kiện: Quản trị viên đã đăng nhập.
 
 Hậu điều kiện: Các dịch vụ bên ngoài được cấu hình và kiểm tra; mọi người dùng dùng chung cấu hình này.
+
+## 2.3. Yêu cầu phi chức năng
+
+Ngoài các chức năng ở mục 2.2, hệ thống cần đáp ứng các yêu cầu sau.
+
+Bảo mật và quyền riêng tư:
+
+- Chỉ người có tài khoản do quản trị viên cấp mới dùng được hệ thống; phiên đăng nhập có thời hạn.
+- Dữ liệu của mỗi người học được tách riêng; người học chỉ xem được dữ liệu của mình.
+- Khóa truy cập các dịch vụ bên ngoài chỉ quản trị viên sửa được và không bao giờ hiển thị đầy đủ.
+
+Tin cậy:
+
+- Khi dịch vụ bên ngoài gặp lỗi, hệ thống báo rõ cho người dùng, không làm mất dữ liệu đã có và cho phép thử lại.
+- Cuộc trò chuyện, ghi chép và tiến độ học không bị mất khi tải lại trang hay đăng nhập lại.
+
+Nhất quán khi xét nắm vững:
+
+- Việc xét nắm vững theo quy tắc cố định: cùng một kết quả làm bài thì luôn cho cùng một kết luận.
+- Người học luôn xem được lý do của kết luận và của việc nên học tiếp theo.
+
+Dễ dùng:
+
+- Giao diện có tiếng Việt và tiếng Anh, có nền sáng và nền tối; người dùng tự chọn.
+- AI trả lời bằng ngôn ngữ người học dùng để hỏi.
+- Câu trả lời của AI hiện dần trong lúc được tạo, người học không phải chờ đến khi xong cả câu trả lời.
+
+Khả năng thay thế:
+
+- Đổi nhà cung cấp hoặc mô hình AI chỉ cần cấu hình lại (UC3.2), không phải sửa hệ thống.
+
+## 2.4. Tóm tắt chương
+
+Chương này đã khảo sát bài toán tự học bằng AI và các giải pháp hiện có, từ đó xác định Masterly là một vòng học khép kín: lập lộ trình theo mục tiêu, học từng điểm kiến thức đến khi nắm vững và ôn tập theo lịch.
+
+Hệ thống có hai tác nhân là người học và quản trị viên, với 11 ca sử dụng chia thành ba nhóm. Mỗi ca sử dụng được đặc tả bằng biểu đồ riêng, luồng cơ bản và các luồng thay thế chính. Các yêu cầu phi chức năng tập trung vào bảo mật dữ liệu, độ tin cậy, tính nhất quán khi xét nắm vững và tính dễ dùng.
+
+Chương tiếp theo trình bày thiết kế hệ thống dựa trên các yêu cầu này.
