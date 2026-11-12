@@ -7,7 +7,7 @@ Masterly giúp người học học có hệ thống: đặt mục tiêu, học 
 học đã nắm vững hay chưa do hệ thống quyết định theo quy tắc nhất quán, AI đảm
 nhận việc giảng giải và đặt câu hỏi.
 
-![Tổng quan hệ thống](report/images/hinh-tong-quan-he-thong.drawio.png)
+![Quy trình học theo lộ trình](report/images/hoat-dong-hoc-theo-lo-trinh.png)
 
 ## Chức năng chính
 
