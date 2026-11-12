@@ -311,3 +311,32 @@ Luồng thay thế:
 Tiền điều kiện: Người học đã đăng nhập.
 
 Hậu điều kiện: Tài liệu được lưu trong kho và xử lý xong, sẵn sàng để AI dùng khi trò chuyện và khi lập lộ trình.
+
+#### UC2.3 - Ghi chép trong lúc học
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.9 mô tả ca sử dụng người học ghi chép ngay trong lúc trò chuyện với AI (UC2.1) hoặc học theo lộ trình (UC1.2), tự viết hoặc nhờ AI ghi lại. Ghi chép được lưu trong sổ ghi chép để xem lại và dùng làm nguồn khi trò chuyện hoặc lập lộ trình.
+
+![Hình 2.9. Biểu đồ ca sử dụng UC2.3 - Ghi chép trong lúc học](images/uc2-3-ghi-chep-trong-luc-hoc.png)
+
+**Hình 2.9. Biểu đồ ca sử dụng UC2.3 - Ghi chép trong lúc học**
+
+Luồng cơ bản: luồng bắt đầu khi người học mở ô ghi chép trong lúc trò chuyện hoặc học, và kết thúc khi ghi chép được lưu.
+
+**Bảng 2.10. Luồng cơ bản của UC2.3**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở ô ghi chép bên cạnh cuộc trò chuyện hoặc buổi học. | 2. Hiển thị ô soạn ghi chép. |  |
+| 3. Viết ghi chép. | 4. Tự động lưu ghi chép vào sổ ghi chép; ghi chép không mất khi rời trang. | Nội dung ghi chép |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Nhờ AI ghi lại hoặc tóm tắt): tại bước 3, người học nhờ AI ghi lại một ý hoặc tóm tắt một phần nội dung vừa trao đổi. AI viết ngắn gọn, rồi thêm vào ghi chép.
+- Luồng thay thế 2 (Nhờ AI chỉnh sửa ghi chép): tại bước 3, người học chọn một đoạn và nêu cách sửa, hoặc nhờ AI bổ sung, sắp xếp lại, đánh dấu ý chính trong cả ghi chép. AI đề xuất bản sửa; người học đồng ý thì bản sửa được áp dụng.
+- Luồng thay thế 3 (Xem lại sổ ghi chép): tại bước 1, người học mở sổ ghi chép để xem, tìm, đổi tên, xóa hoặc tải ghi chép.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Ghi chép được lưu trong sổ ghi chép, xem lại được và dùng được làm nguồn khi trò chuyện hoặc lập lộ trình.
