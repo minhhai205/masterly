@@ -340,3 +340,31 @@ Luồng thay thế:
 Tiền điều kiện: Người học đã đăng nhập.
 
 Hậu điều kiện: Ghi chép được lưu trong sổ ghi chép, xem lại được và dùng được làm nguồn khi trò chuyện hoặc lập lộ trình.
+
+#### UC2.4 - Điều chỉnh bộ nhớ người học
+
+Tác nhân chính: Người học.
+
+Mô tả tóm lược: Hình 2.10 mô tả ca sử dụng người học xem và điều chỉnh những gì hệ thống ghi nhớ về mình. Sau các buổi học, hệ thống tự ghi nhớ thông tin về người học, như mục tiêu, phần còn yếu hay cách học ưa thích, để AI hỗ trợ phù hợp hơn ở các lần sau. Mỗi thông tin ghi nhớ kèm nguồn cho biết nó được ghi từ đâu.
+
+![Hình 2.10. Biểu đồ ca sử dụng UC2.4 - Điều chỉnh bộ nhớ người học](images/uc2-4-dieu-chinh-bo-nho-nguoi-hoc.png)
+
+**Hình 2.10. Biểu đồ ca sử dụng UC2.4 - Điều chỉnh bộ nhớ người học**
+
+Luồng cơ bản: luồng bắt đầu khi người học mở trang bộ nhớ và kết thúc khi thông tin đã sửa được lưu.
+
+**Bảng 2.11. Luồng cơ bản của UC2.4**
+
+| Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
+|---|---|---|
+| 1. Mở trang bộ nhớ. | 2. Hiển thị các thông tin ghi nhớ về người học, mỗi thông tin kèm nguồn: cuộc trò chuyện, buổi học hay tài liệu đã tạo ra nó. | Thông tin ghi nhớ, nguồn |
+| 3. Chọn một thông tin chưa đúng và sửa lại. | 4. Lưu thông tin đã sửa; AI dùng nội dung mới từ các lượt sau. | Thông tin ghi nhớ |
+
+Luồng thay thế:
+
+- Luồng thay thế 1 (Xóa thông tin ghi nhớ): tại bước 3, người học xóa một thông tin. Hệ thống không dùng thông tin đó nữa.
+- Luồng thay thế 2 (Tắt bộ nhớ): tại bước 1, người học tắt bộ nhớ. Hệ thống ngừng ghi nhớ thông tin mới và AI không dùng bộ nhớ khi trả lời, cho tới khi người học bật lại.
+
+Tiền điều kiện: Người học đã đăng nhập.
+
+Hậu điều kiện: Thay đổi được lưu; AI dùng bộ nhớ đã điều chỉnh ở các lượt trò chuyện và buổi học sau.
