@@ -33,7 +33,7 @@ Yêu cầu cốt lõi: việc xét người học đã nắm vững hay chưa ph
 - Khan Academy và Khanmigo: học đến khi thành thạo trên các bài học soạn sẵn, có gia sư AI dẫn dắt.
 - Anki (mã nguồn mở): người học tự soạn thẻ ghi nhớ, mỗi thẻ có lịch ôn riêng.
 
-**Bảng 2.1. So sánh các giải pháp tiêu biểu**
+Bảng 2.1. So sánh các giải pháp tiêu biểu
 
 | Giải pháp | Học trên tài liệu, nội dung riêng | Lộ trình theo mục tiêu | Xét nắm vững | Ôn tập theo lịch |
 |---|---|---|---|---|
@@ -80,7 +80,7 @@ Quy trình học theo lộ trình:
 
 ![Hình 2.1. Biểu đồ hoạt động của quy trình học theo lộ trình](images/hoat-dong-hoc-theo-lo-trinh.png)
 
-**Hình 2.1. Biểu đồ hoạt động của quy trình học theo lộ trình**
+Hình 2.1. Biểu đồ hoạt động của quy trình học theo lộ trình
 
 ### 2.1.5. Phạm vi hệ thống
 
@@ -94,7 +94,7 @@ Quy trình học theo lộ trình:
 
 Hệ thống có hai tác nhân, đều là người dùng có tài khoản do quản trị viên cấp. Các dịch vụ bên ngoài mà hệ thống kết nối tới không phải tác nhân.
 
-**Bảng 2.2. Danh sách các tác nhân của hệ thống**
+Bảng 2.2. Danh sách các tác nhân của hệ thống
 
 | STT | Tác nhân | Mô tả |
 |---|---|---|
@@ -113,9 +113,9 @@ Người học dùng các ca sử dụng của hai nhóm đầu. Quản trị vi
 
 ![Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly](images/ca-su-dung-tong-quat.png)
 
-**Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly**
+Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly
 
-**Bảng 2.3. Danh sách các ca sử dụng của hệ thống**
+Bảng 2.3. Danh sách các ca sử dụng của hệ thống
 
 | Nhóm | Mã | Tên ca sử dụng | Tác nhân |
 |---|---|---|---|
@@ -141,11 +141,11 @@ Mô tả tóm lược: Hình 2.3 mô tả ca sử dụng người học nêu m�
 
 ![Hình 2.3. Biểu đồ ca sử dụng UC1.1 - Lập lộ trình](images/uc1-1-lap-lo-trinh.png)
 
-**Hình 2.3. Biểu đồ ca sử dụng UC1.1 - Lập lộ trình**
+Hình 2.3. Biểu đồ ca sử dụng UC1.1 - Lập lộ trình
 
 Luồng cơ bản: luồng bắt đầu khi người học chọn tạo lộ trình mới và kết thúc khi lộ trình được lưu.
 
-**Bảng 2.4. Luồng cơ bản của UC1.1**
+Bảng 2.4. Luồng cơ bản của UC1.1
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -170,11 +170,11 @@ Mô tả tóm lược: Hình 2.4 mô tả ca sử dụng người học học m�
 
 ![Hình 2.4. Biểu đồ ca sử dụng UC1.2 - Học một điểm kiến thức](images/uc1-2-hoc-mot-diem-kien-thuc.png)
 
-**Hình 2.4. Biểu đồ ca sử dụng UC1.2 - Học một điểm kiến thức**
+Hình 2.4. Biểu đồ ca sử dụng UC1.2 - Học một điểm kiến thức
 
 Luồng cơ bản: luồng bắt đầu khi người học chốt xong dàn ý và bắt đầu học, hoặc tiếp tục một lộ trình đang học dở; kết thúc khi điểm kiến thức được đánh dấu đã nắm vững.
 
-**Bảng 2.5. Luồng cơ bản của UC1.2**
+Bảng 2.5. Luồng cơ bản của UC1.2
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -200,11 +200,11 @@ Mô tả tóm lược: Hình 2.5 mô tả ca sử dụng người học ôn lạ
 
 ![Hình 2.5. Biểu đồ ca sử dụng UC1.3 - Ôn tập theo lịch](images/uc1-3-on-tap-theo-lich.png)
 
-**Hình 2.5. Biểu đồ ca sử dụng UC1.3 - Ôn tập theo lịch**
+Hình 2.5. Biểu đồ ca sử dụng UC1.3 - Ôn tập theo lịch
 
 Luồng cơ bản: luồng bắt đầu khi người học chọn ôn tập lúc lộ trình có điểm đến hạn ôn và kết thúc khi đã ôn hết các điểm đến hạn.
 
-**Bảng 2.6. Luồng cơ bản của UC1.3**
+Bảng 2.6. Luồng cơ bản của UC1.3
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -231,11 +231,11 @@ Mô tả tóm lược: Hình 2.6 mô tả ca sử dụng người học xem ti�
 
 ![Hình 2.6. Biểu đồ ca sử dụng UC1.4 - Theo dõi tiến độ lộ trình](images/uc1-4-theo-doi-tien-do-lo-trinh.png)
 
-**Hình 2.6. Biểu đồ ca sử dụng UC1.4 - Theo dõi tiến độ lộ trình**
+Hình 2.6. Biểu đồ ca sử dụng UC1.4 - Theo dõi tiến độ lộ trình
 
 Luồng cơ bản: luồng bắt đầu khi người học mở danh sách lộ trình và kết thúc khi hệ thống hiển thị tiến độ của lộ trình được chọn.
 
-**Bảng 2.7. Luồng cơ bản của UC1.4**
+Bảng 2.7. Luồng cơ bản của UC1.4
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -260,11 +260,11 @@ Mô tả tóm lược: Hình 2.7 mô tả ca sử dụng người học hỏi đ
 
 ![Hình 2.7. Biểu đồ ca sử dụng UC2.1 - Trò chuyện với AI](images/uc2-1-tro-chuyen-voi-ai.png)
 
-**Hình 2.7. Biểu đồ ca sử dụng UC2.1 - Trò chuyện với AI**
+Hình 2.7. Biểu đồ ca sử dụng UC2.1 - Trò chuyện với AI
 
 Luồng cơ bản: luồng bắt đầu khi người học tạo cuộc trò chuyện mới và kết thúc khi người học ngừng hỏi.
 
-**Bảng 2.8. Luồng cơ bản của UC2.1**
+Bảng 2.8. Luồng cơ bản của UC2.1
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -290,11 +290,11 @@ Mô tả tóm lược: Hình 2.8 mô tả ca sử dụng người học đưa t�
 
 ![Hình 2.8. Biểu đồ ca sử dụng UC2.2 - Tải lên và sắp xếp tài liệu học](images/uc2-2-tai-len-va-sap-xep-tai-lieu.png)
 
-**Hình 2.8. Biểu đồ ca sử dụng UC2.2 - Tải lên và sắp xếp tài liệu học**
+Hình 2.8. Biểu đồ ca sử dụng UC2.2 - Tải lên và sắp xếp tài liệu học
 
 Luồng cơ bản: luồng bắt đầu khi người học mở một kho tài liệu và kết thúc khi tài liệu tải lên đã được xử lý xong.
 
-**Bảng 2.9. Luồng cơ bản của UC2.2**
+Bảng 2.9. Luồng cơ bản của UC2.2
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -320,11 +320,11 @@ Mô tả tóm lược: Hình 2.9 mô tả ca sử dụng người học ghi ché
 
 ![Hình 2.9. Biểu đồ ca sử dụng UC2.3 - Ghi chép trong lúc học](images/uc2-3-ghi-chep-trong-luc-hoc.png)
 
-**Hình 2.9. Biểu đồ ca sử dụng UC2.3 - Ghi chép trong lúc học**
+Hình 2.9. Biểu đồ ca sử dụng UC2.3 - Ghi chép trong lúc học
 
 Luồng cơ bản: luồng bắt đầu khi người học mở ô ghi chép trong lúc trò chuyện hoặc học, và kết thúc khi ghi chép được lưu.
 
-**Bảng 2.10. Luồng cơ bản của UC2.3**
+Bảng 2.10. Luồng cơ bản của UC2.3
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -349,11 +349,11 @@ Mô tả tóm lược: Hình 2.10 mô tả ca sử dụng người học xem và
 
 ![Hình 2.10. Biểu đồ ca sử dụng UC2.4 - Điều chỉnh bộ nhớ người học](images/uc2-4-dieu-chinh-bo-nho-nguoi-hoc.png)
 
-**Hình 2.10. Biểu đồ ca sử dụng UC2.4 - Điều chỉnh bộ nhớ người học**
+Hình 2.10. Biểu đồ ca sử dụng UC2.4 - Điều chỉnh bộ nhớ người học
 
 Luồng cơ bản: luồng bắt đầu khi người học mở trang bộ nhớ và kết thúc khi thông tin đã sửa được lưu.
 
-**Bảng 2.11. Luồng cơ bản của UC2.4**
+Bảng 2.11. Luồng cơ bản của UC2.4
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -377,11 +377,11 @@ Mô tả tóm lược: Hình 2.11 mô tả ca sử dụng người học chia vi
 
 ![Hình 2.11. Biểu đồ ca sử dụng UC2.5 - Tổ chức không gian học](images/uc2-5-to-chuc-khong-gian-hoc.png)
 
-**Hình 2.11. Biểu đồ ca sử dụng UC2.5 - Tổ chức không gian học**
+Hình 2.11. Biểu đồ ca sử dụng UC2.5 - Tổ chức không gian học
 
 Luồng cơ bản: luồng bắt đầu khi người học mở danh sách không gian học và kết thúc khi người học đang làm việc trong không gian vừa tạo.
 
-**Bảng 2.12. Luồng cơ bản của UC2.5**
+Bảng 2.12. Luồng cơ bản của UC2.5
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -406,11 +406,11 @@ Mô tả tóm lược: Hình 2.12 mô tả ca sử dụng quản trị viên c�
 
 ![Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản](images/uc3-1-cap-va-thu-hoi-tai-khoan.png)
 
-**Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản**
+Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản
 
 Luồng cơ bản: luồng bắt đầu khi quản trị viên mở trang quản lý tài khoản và kết thúc khi tài khoản mới được tạo.
 
-**Bảng 2.13. Luồng cơ bản của UC3.1**
+Bảng 2.13. Luồng cơ bản của UC3.1
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
@@ -435,11 +435,11 @@ Mô tả tóm lược: Hình 2.13 mô tả ca sử dụng quản trị viên kha
 
 ![Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài](images/uc3-2-cau-hinh-dich-vu-ben-ngoai.png)
 
-**Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài**
+Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài
 
 Luồng cơ bản: luồng bắt đầu khi quản trị viên mở trang cấu hình dịch vụ và kết thúc khi đã chọn mô hình cho các dịch vụ.
 
-**Bảng 2.14. Luồng cơ bản của UC3.2**
+Bảng 2.14. Luồng cơ bản của UC3.2
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
