@@ -24,7 +24,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from masterly.multi_user.context import get_current_user
-from masterly.services.codex_auth import reconcile_codex_catalog_update
+from masterly.services.codex_auth import (
+    CodexAuthError,
+    get_codex_oauth_service,
+    reconcile_codex_catalog_update,
+)
 from masterly.services.config import (
     CATALOG_SECRET_MASK,
     get_config_test_runner,
@@ -86,6 +90,15 @@ class SettingsDraftPayload(BaseModel):
     catalog: dict[str, Any] | None = None
     # Opaque per-page state, keyed by the string the page registers with.
     extensions: dict[str, Any] = Field(default_factory=dict)
+
+
+class CodexOAuthCallbackPayload(BaseModel):
+    callback_url: str
+
+
+class CodexReasoningEffortUpdate(BaseModel):
+    model: str = Field(min_length=1)
+    reasoning_effort: str | None = None
 
 
 class FetchModelsPayload(BaseModel):
@@ -688,3 +701,94 @@ async def cancel_service_test(service: str, run_id: str):
     _require_settings_admin()
     get_config_test_runner().cancel(run_id)
     return {"message": "Cancelled"}
+
+
+# --- ChatGPT (Codex) sign-in -------------------------------------------------
+# One login for the whole deployment: the administrator signs in, every account
+# runs on it (see ``services.codex_auth.service``).
+
+
+def _codex_http_exception(error: CodexAuthError) -> HTTPException:
+    return HTTPException(
+        status_code=error.http_status,
+        detail={"code": error.code, "message": error.public_message},
+    )
+
+
+@router.post("/providers/openai-codex/oauth/start")
+async def start_openai_codex_oauth() -> dict[str, Any]:
+    _require_settings_admin()
+    try:
+        return await get_codex_oauth_service().start_login()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.get("/providers/openai-codex/oauth/status")
+async def get_openai_codex_oauth_status() -> dict[str, Any]:
+    _require_settings_admin()
+    try:
+        return get_codex_oauth_service().public_status()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/complete")
+async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dict[str, Any]:
+    """Finish a waiting login from a callback address the administrator pasted.
+
+    The provider redirects the browser to a loopback listener on the server.
+    When the browser runs on another machine that address fails to load while
+    the sign-in waits; pasting it here completes the same exchange.
+    """
+    _require_settings_admin()
+    try:
+        return await get_codex_oauth_service().complete_login_with_callback_url(
+            payload.callback_url
+        )
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/cancel")
+async def cancel_openai_codex_oauth() -> dict[str, Any]:
+    _require_settings_admin()
+    try:
+        return await get_codex_oauth_service().cancel_login()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/logout")
+async def logout_openai_codex_oauth() -> dict[str, Any]:
+    _require_settings_admin()
+    try:
+        return await get_codex_oauth_service().logout()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/models/refresh")
+async def refresh_openai_codex_models() -> dict[str, Any]:
+    _require_settings_admin()
+    try:
+        return await get_codex_oauth_service().refresh_models()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/models/reasoning-effort")
+async def update_openai_codex_reasoning_effort(
+    payload: CodexReasoningEffortUpdate,
+) -> dict[str, Any]:
+    _require_settings_admin()
+    # The Codex service writes the catalog the runtime resolves against; bracket
+    # it like every other catalog write so the next turn uses the new effort.
+    with _runtime_catalog_write():
+        try:
+            return await get_codex_oauth_service().set_reasoning_effort(
+                payload.model,
+                payload.reasoning_effort,
+            )
+        except CodexAuthError as exc:
+            raise _codex_http_exception(exc) from None
