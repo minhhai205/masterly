@@ -388,6 +388,108 @@ async def test_apply_catalog_service_only_promotes_the_selected_service_and_upda
     )
 
 
+# --- Model listing ---------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_fetch_models_returns_picker_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    import masterly.services.llm.factory as factory_module
+
+    async def _fake_fetch(
+        binding: str, base_url: str, api_key: str | None = None, api_format: str = "auto"
+    ):
+        assert binding == "openai"  # "OpenAI" is normalized to lowercase
+        assert base_url == "https://api.example.com/v1"
+        assert api_key == "sk-x"
+        return ["gpt-4o", "gpt-4o-mini"]
+
+    monkeypatch.setattr(factory_module, "fetch_models", _fake_fetch)
+
+    response = await settings_router.fetch_models_from_provider(
+        settings_router.FetchModelsPayload(
+            binding="OpenAI", base_url="https://api.example.com/v1", api_key="sk-x"
+        )
+    )
+
+    assert response == {
+        "models": [
+            {"id": "gpt-4o", "name": "gpt-4o"},
+            {"id": "gpt-4o-mini", "name": "gpt-4o-mini"},
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_fetch_models_resolves_masked_key_server_side(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import masterly.services.llm.factory as factory_module
+
+    catalog = _build_catalog(
+        llm_model="gpt-4o-mini",
+        llm_base_url="https://llm.example/v1",
+        llm_api_key="stored-secret",
+        embedding_model="text-embedding-3-small",
+        embedding_base_url="https://emb.example/v1/embeddings",
+        embedding_api_key="emb-key",
+    )
+    service = _FakeCatalogService(catalog)
+    monkeypatch.setattr(settings_router, "get_model_catalog_service", lambda: service)
+
+    async def _fake_fetch(
+        binding: str, base_url: str, api_key: str | None = None, api_format: str = "auto"
+    ):
+        assert (binding, base_url, api_key) == (
+            "openai",
+            "https://llm.example/v1",
+            "stored-secret",
+        )
+        return ["gpt-4o-mini"]
+
+    monkeypatch.setattr(factory_module, "fetch_models", _fake_fetch)
+
+    response = await settings_router.fetch_models_from_provider(
+        settings_router.FetchModelsPayload(
+            binding="openai",
+            base_url="https://llm.example/v1",
+            api_key=CATALOG_SECRET_MASK,
+            profile_id="llm-profile-default",
+        )
+    )
+
+    assert response == {"models": [{"id": "gpt-4o-mini", "name": "gpt-4o-mini"}]}
+
+
+@pytest.mark.asyncio
+async def test_fetch_models_requires_base_url() -> None:
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await settings_router.fetch_models_from_provider(
+            settings_router.FetchModelsPayload(base_url="   ")
+        )
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_fetch_models_maps_provider_error_to_502(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import HTTPException
+
+    import masterly.services.llm.factory as factory_module
+
+    async def _boom(binding: str, base_url: str, api_key: str | None = None):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(factory_module, "fetch_models", _boom)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await settings_router.fetch_models_from_provider(
+            settings_router.FetchModelsPayload(binding="custom", base_url="https://x/v1")
+        )
+    assert exc_info.value.status_code == 502
+
+
+
 # --- Access through the real app -------------------------------------------
 
 

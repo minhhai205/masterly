@@ -22,8 +22,10 @@ from masterly.services.config import (
 )
 from masterly.services.config.origins import normalize_origins
 from masterly.services.path_service import get_path_service
+from masterly.services.setup import ensure_agents_settings
 
 ensure_runtime_settings_files()
+ensure_agents_settings()
 export_runtime_settings_to_env(overwrite=True)
 configure_logging()
 logger = logging.getLogger(__name__)
