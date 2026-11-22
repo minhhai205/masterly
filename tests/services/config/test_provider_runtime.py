@@ -65,18 +65,18 @@ def test_llm_explicit_binding_and_headers() -> None:
         llm_profile={
             "id": "llm-p",
             "name": "LLM",
-            "binding": "dashscope",
+            "binding": "deepseek",
             "base_url": "",
-            "api_key": "dash-key",
+            "api_key": "ds-key",
             "api_version": "",
             "extra_headers": {"APP-Code": "abc"},
-            "models": [{"id": "llm-m", "name": "q", "model": "qwen-max"}],
+            "models": [{"id": "llm-m", "name": "d", "model": "deepseek-chat"}],
         }
     )
     resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "dashscope"
+    assert resolved.provider_name == "deepseek"
     assert resolved.provider_mode == "standard"
-    assert resolved.effective_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert resolved.effective_url == "https://api.deepseek.com"
     assert resolved.extra_headers == {"APP-Code": "abc"}
 
 
@@ -122,7 +122,7 @@ def test_llm_api_base_keyword_gateway() -> None:
             "id": "llm-p",
             "name": "LLM",
             "binding": "",
-            "base_url": "https://api.aihubmix.com/v1",
+            "base_url": "https://openrouter.ai/api/v1",
             "api_key": "k",
             "api_version": "",
             "extra_headers": {"APP-Code": "x"},
@@ -130,322 +130,10 @@ def test_llm_api_base_keyword_gateway() -> None:
         }
     )
     resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "aihubmix"
+    assert resolved.provider_name == "openrouter"
     assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.aihubmix.com/v1"
+    assert resolved.effective_url == "https://openrouter.ai/api/v1"
     assert resolved.extra_headers == {"APP-Code": "x"}
-
-
-def test_llm_orcarouter_binding_uses_default_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OrcaRouter",
-            "binding": "orcarouter",
-            "base_url": "",
-            "api_key": "sk-orca-test-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "m", "model": "orcarouter/auto"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "orcarouter"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.orcarouter.ai/v1"
-
-
-def test_llm_orcarouter_key_prefix_gateway() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "LLM",
-            "binding": "",
-            "base_url": "",
-            "api_key": "sk-orca-test-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "m", "model": "anthropic/claude-sonnet-4.6"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "orcarouter"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.orcarouter.ai/v1"
-
-
-def test_llm_orcarouter_base_keyword_gateway() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "LLM",
-            "binding": "",
-            "base_url": "https://api.orcarouter.ai/v1",
-            "api_key": "k",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "m", "model": "deepseek/deepseek-v4-pro"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "orcarouter"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.orcarouter.ai/v1"
-
-
-def test_llm_atlascloud_binding_uses_default_openai_compatible_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "Atlas Cloud",
-            "binding": "atlascloud",
-            "base_url": "",
-            "api_key": "atlas-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [
-                {
-                    "id": "llm-m",
-                    "name": "Qwen 3.5 Flash",
-                    "model": "qwen/qwen3.5-flash",
-                }
-            ],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "atlascloud"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.binding == "atlascloud"
-    assert resolved.model == "qwen/qwen3.5-flash"
-    assert resolved.api_key == "atlas-key"
-    assert resolved.effective_url == "https://api.atlascloud.ai/v1"
-
-
-def test_llm_atlascloud_base_url_detection_preserves_openai_binding_compatibility() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OpenAI Compatible",
-            "binding": "openai",
-            "base_url": "https://api.atlascloud.ai/v1",
-            "api_key": "atlas-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "Qwen", "model": "qwen/qwen3.5-flash"}],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "atlascloud"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.atlascloud.ai/v1"
-
-
-def test_llm_unifically_binding_uses_default_openai_compatible_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "Unifically",
-            "binding": "unifically",
-            "base_url": "",
-            "api_key": "unifically-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [
-                {
-                    "id": "llm-m",
-                    "name": "Gemini 3.5 Flash",
-                    "model": "google/gemini-3.5-flash",
-                }
-            ],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "unifically"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.binding == "unifically"
-    assert resolved.model == "google/gemini-3.5-flash"
-    assert resolved.api_key == "unifically-key"
-    assert resolved.effective_url == "https://api.unifically.com/v1"
-
-
-def test_llm_unifically_base_url_detection_preserves_openai_binding_compatibility() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OpenAI Compatible",
-            "binding": "openai",
-            "base_url": "https://api.unifically.com/v1",
-            "api_key": "unifically-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "Gemini", "model": "google/gemini-3.5-flash"}],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "unifically"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.unifically.com/v1"
-
-
-def test_llm_cheaperinference_binding_uses_default_openai_compatible_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "Cheaper Inference",
-            "binding": "cheaperinference",
-            "base_url": "",
-            "api_key": "cheaperinference-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [
-                {
-                    "id": "llm-m",
-                    "name": "GPT-5.4",
-                    "model": "gpt-5.4",
-                }
-            ],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "cheaperinference"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.binding == "cheaperinference"
-    assert resolved.model == "gpt-5.4"
-    assert resolved.api_key == "cheaperinference-key"
-    assert resolved.effective_url == "https://api.cheaperinference.com/v1"
-
-
-def test_llm_cheaperinference_base_url_detection_preserves_openai_binding_compatibility() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OpenAI Compatible",
-            "binding": "openai",
-            "base_url": "https://api.cheaperinference.com/v1",
-            "api_key": "cheaperinference-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "GPT", "model": "gpt-5.4-mini"}],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "cheaperinference"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.cheaperinference.com/v1"
-
-
-def test_llm_novita_binding_uses_default_openai_compatible_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "Novita AI",
-            "binding": "novita",
-            "base_url": "",
-            "api_key": "novita-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [
-                {
-                    "id": "llm-m",
-                    "name": "DeepSeek V3.2",
-                    "model": "deepseek/deepseek-v3.2",
-                }
-            ],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "novita"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.binding == "novita"
-    assert resolved.model == "deepseek/deepseek-v3.2"
-    assert resolved.api_key == "novita-key"
-    assert resolved.effective_url == "https://api.novita.ai/openai"
-
-
-def test_llm_novita_base_url_detection_preserves_openai_binding_compatibility() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OpenAI Compatible",
-            "binding": "openai",
-            "base_url": "https://api.novita.ai/openai",
-            "api_key": "novita-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "DeepSeek", "model": "deepseek/deepseek-v3.2"}],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "novita"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.novita.ai/openai"
-
-
-def test_llm_edenai_binding_uses_default_openai_compatible_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "Eden AI",
-            "binding": "edenai",
-            "base_url": "",
-            "api_key": "eden-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [
-                {
-                    "id": "llm-m",
-                    "name": "Mistral Large",
-                    "model": "mistral/mistral-large-latest",
-                }
-            ],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "edenai"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.binding == "edenai"
-    assert resolved.model == "mistral/mistral-large-latest"
-    assert resolved.api_key == "eden-key"
-    assert resolved.effective_url == "https://api.edenai.run/v3"
-
-
-def test_llm_edenai_base_url_detection_preserves_openai_binding_compatibility() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "OpenAI Compatible",
-            "binding": "openai",
-            "base_url": "https://api.edenai.run/v3",
-            "api_key": "eden-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "GPT", "model": "openai/gpt-5.5"}],
-        }
-    )
-
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-
-    assert resolved.provider_name == "edenai"
-    assert resolved.provider_mode == "gateway"
-    assert resolved.effective_url == "https://api.edenai.run/v3"
 
 
 def test_llm_local_fallback() -> None:
@@ -480,44 +168,6 @@ def test_llm_empty_catalog_does_not_fallback_to_openai() -> None:
     assert resolved.model == ""
 
 
-def test_llm_minimax_binding_uses_global_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "LLM",
-            "binding": "minimax",
-            "base_url": "",
-            "api_key": "minimax-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "m", "model": "MiniMax-M3"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "minimax"
-    assert resolved.provider_mode == "standard"
-    assert resolved.effective_url == "https://api.minimax.io/v1"
-
-
-def test_llm_minimax_anthropic_binding_uses_anthropic_endpoint() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "LLM",
-            "binding": "minimax_anthropic",
-            "base_url": "",
-            "api_key": "minimax-key",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "c", "model": "claude-sonnet-4-20250514"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "minimax_anthropic"
-    assert resolved.provider_mode == "standard"
-    assert resolved.effective_url == "https://api.minimax.io/anthropic"
-
-
 def test_llm_custom_anthropic_binding_stays_direct() -> None:
     catalog = _build_catalog(
         llm_profile={
@@ -537,26 +187,6 @@ def test_llm_custom_anthropic_binding_stays_direct() -> None:
     assert resolved.binding == "custom_anthropic"
     assert resolved.effective_url == "https://claude-proxy.example/v1/messages"
     assert resolved.extra_headers == {"x-tenant": "lab"}
-
-
-def test_llm_lm_studio_alias_resolves_to_local_provider() -> None:
-    catalog = _build_catalog(
-        llm_profile={
-            "id": "llm-p",
-            "name": "LLM",
-            "binding": "lm-studio",
-            "base_url": "",
-            "api_key": "",
-            "api_version": "",
-            "extra_headers": {},
-            "models": [{"id": "llm-m", "name": "m", "model": "llama-3.2"}],
-        }
-    )
-    resolved = resolve_llm_runtime_config(catalog=catalog)
-    assert resolved.provider_name == "lm_studio"
-    assert resolved.provider_mode == "local"
-    assert resolved.effective_url == "http://localhost:1234/v1"
-    assert resolved.api_key == "sk-no-key-required"
 
 
 def test_llm_context_window_passes_through_from_catalog() -> None:
@@ -765,44 +395,6 @@ def test_search_marks_deprecated_provider() -> None:
     assert resolved.unsupported_provider is True
     assert resolved.deprecated_provider is True
     assert resolved.provider == "exa"
-
-
-def test_search_perplexity_missing_credentials() -> None:
-    catalog = _build_catalog(
-        search_profile={
-            "id": "search-p",
-            "name": "Search",
-            "provider": "perplexity",
-            "base_url": "",
-            "api_key": "",
-            "proxy": "",
-            "models": [],
-        }
-    )
-    resolved = resolve_search_runtime_config(catalog=catalog)
-    assert resolved.provider == "perplexity"
-    assert resolved.unsupported_provider is False
-    assert resolved.deprecated_provider is False
-    assert resolved.missing_credentials is True
-
-
-def test_search_serper_missing_credentials() -> None:
-    catalog = _build_catalog(
-        search_profile={
-            "id": "search-p",
-            "name": "Search",
-            "provider": "serper",
-            "base_url": "",
-            "api_key": "",
-            "proxy": "",
-            "models": [],
-        }
-    )
-    resolved = resolve_search_runtime_config(catalog=catalog)
-    assert resolved.provider == "serper"
-    assert resolved.unsupported_provider is False
-    assert resolved.deprecated_provider is False
-    assert resolved.missing_credentials is True
 
 
 def test_search_searxng_without_url_fallback() -> None:

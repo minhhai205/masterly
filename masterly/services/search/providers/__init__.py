@@ -170,37 +170,19 @@ def get_default_provider(**kwargs) -> BaseSearchProvider:
 def _register_builtin_providers() -> None:
     # Import for side effects (register_provider decorators).
     from . import (
-        aliyun_iqs,
-        bocha,
         brave,
-        doubao,
         duckduckgo,
-        firecrawl,
         jina,
-        perplexity,
-        qianfan,
         searxng,
-        serper,
-        serply,
         tavily,
-        zhipu,
     )
 
     _ = (
-        aliyun_iqs,
-        bocha,
         brave,
-        doubao,
         duckduckgo,
-        firecrawl,
         jina,
-        perplexity,
-        qianfan,
         searxng,
-        serper,
-        serply,
         tavily,
-        zhipu,
     )
 
 

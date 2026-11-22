@@ -133,21 +133,6 @@ def test_web_search_none_provider_returns_actionable_configuration_error(monkeyp
     assert "DuckDuckGo" in result["answer"]
 
 
-def test_web_search_perplexity_missing_key_hard_fails(monkeypatch) -> None:
-    _patch_runtime(
-        monkeypatch,
-        ResolvedSearchConfig(
-            provider="perplexity",
-            requested_provider="perplexity",
-            api_key="",
-            max_results=5,
-            missing_credentials=True,
-        ),
-    )
-    with pytest.raises(ValueError, match="perplexity requires api_key"):
-        web_search("hello")
-
-
 def test_web_search_missing_key_falls_back_to_duckduckgo(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
@@ -206,14 +191,14 @@ def test_web_search_runtime_failure_falls_through_the_chain(monkeypatch) -> None
 
     def _fake_get_provider(name: str, **kwargs):
         seen.append((name, kwargs))
-        return _FailingProvider(name) if name == "serper" else _FakeProvider(name)
+        return _FailingProvider(name) if name == "brave" else _FakeProvider(name)
 
     _patch_runtime(
         monkeypatch,
         ResolvedSearchConfig(
-            provider="serper",
-            requested_provider="serper",
-            api_key="serper-key",
+            provider="brave",
+            requested_provider="brave",
+            api_key="brave-key",
             max_results=5,
         ),
         candidates=["tavily", "duckduckgo"],
@@ -222,10 +207,10 @@ def test_web_search_runtime_failure_falls_through_the_chain(monkeypatch) -> None
     monkeypatch.setattr("masterly.services.search.get_provider", _fake_get_provider)
     result = web_search("hello")
 
-    assert [name for name, _ in seen] == ["serper", "tavily"]
+    assert [name for name, _ in seen] == ["brave", "tavily"]
     assert result["provider"] == "tavily"
     fallback = result["search_fallback"]
-    assert fallback["requested"] == "serper"
+    assert fallback["requested"] == "brave"
     assert fallback["used"] == "tavily"
     assert "202 Ratelimit" in fallback["failures"][0]
     # The fallback provider runs on its own credentials, never the failed
@@ -238,15 +223,15 @@ def test_web_search_fallback_drops_request_credentials_for_previous_provider(mon
 
     def _fake_get_provider(name: str, **kwargs):
         seen.append((name, kwargs))
-        return _FailingProvider(name) if name == "serper" else _FakeProvider(name)
+        return _FailingProvider(name) if name == "brave" else _FakeProvider(name)
 
     _patch_runtime(
         monkeypatch,
         ResolvedSearchConfig(
-            provider="serper",
-            requested_provider="serper",
-            api_key="profile-serper-key",
-            base_url="https://profile.serper.example",
+            provider="brave",
+            requested_provider="brave",
+            api_key="profile-brave-key",
+            base_url="https://profile.brave.example",
             max_results=5,
         ),
         candidates=["tavily"],
@@ -256,13 +241,13 @@ def test_web_search_fallback_drops_request_credentials_for_previous_provider(mon
 
     result = web_search(
         "hello",
-        api_key="request-serper-key",
-        base_url="https://request.serper.example",
+        api_key="request-brave-key",
+        base_url="https://request.brave.example",
     )
 
     assert result["provider"] == "tavily"
-    assert seen[0][1]["api_key"] == "request-serper-key"
-    assert seen[0][1]["base_url"] == "https://request.serper.example"
+    assert seen[0][1]["api_key"] == "request-brave-key"
+    assert seen[0][1]["base_url"] == "https://request.brave.example"
     assert seen[1][1]["api_key"] == "tavily-key"
     assert seen[1][1]["base_url"] == "https://tavily.example"
 

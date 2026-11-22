@@ -16,12 +16,8 @@ def test_llm_provider_choices_expose_api_formats_and_legacy_status() -> None:
     assert llm["openai"]["api_formats"] == ["auto", "openai_chat", "openai_responses"]
     assert llm["anthropic"]["api_formats"] == ["anthropic"]
     assert llm["azure_openai"]["api_formats"] == []
-    # Vendors serving a second protocol at a different endpoint say where.
-    assert llm["minimax"]["base_urls"]["anthropic"] == "https://api.minimax.io/anthropic"
-    assert llm["minimax"]["base_urls"]["auto"] == "https://api.minimax.io/v1"
     # Legacy entries stay listed for stored catalogs but are flagged.
     assert llm["custom_anthropic"]["status"] == "legacy"
-    assert llm["minimax_anthropic"]["status"] == "legacy"
     # The task service is the LLM's shape.
     assert settings_router._provider_choices()["task"] is settings_router._provider_choices()[
         "llm"

@@ -61,7 +61,7 @@ class OpenAISDKEmbeddingAdapter(BaseEmbeddingAdapter):
         if request.contents:
             raise ValueError(
                 "openai_sdk adapter does not support multimodal `contents`. "
-                "Pick a multimodal-capable provider (cohere, aliyun)."
+                "Pick a multimodal-capable provider (cohere)."
             )
 
         model = request.model or self.model

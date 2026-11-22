@@ -7,7 +7,6 @@ from .base import (
     EmbeddingResponse,
 )
 from .cohere import CohereEmbeddingAdapter
-from .dashscope_native import DashScopeMultiModalEmbeddingAdapter
 from .gemini import GeminiEmbeddingAdapter
 from .jina import JinaEmbeddingAdapter
 from .ollama import OllamaEmbeddingAdapter
@@ -20,7 +19,6 @@ ADAPTER_BACKENDS: dict[str, type[BaseEmbeddingAdapter]] = {
     "cohere": CohereEmbeddingAdapter,
     "jina": JinaEmbeddingAdapter,
     "ollama": OllamaEmbeddingAdapter,
-    "dashscope_native": DashScopeMultiModalEmbeddingAdapter,
     "gemini": GeminiEmbeddingAdapter,
 }
 
@@ -32,7 +30,6 @@ __all__ = [
     "EmbeddingResponse",
     "OpenAICompatibleEmbeddingAdapter",
     "OpenAISDKEmbeddingAdapter",
-    "DashScopeMultiModalEmbeddingAdapter",
     "GeminiEmbeddingAdapter",
     "JinaEmbeddingAdapter",
     "CohereEmbeddingAdapter",

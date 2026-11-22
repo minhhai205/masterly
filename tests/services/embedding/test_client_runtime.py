@@ -233,7 +233,6 @@ def test_resolve_adapter_class_supports_canonical_providers() -> None:
     assert _resolve_adapter_class("cohere").__name__ == "CohereEmbeddingAdapter"
     assert _resolve_adapter_class("jina").__name__ == "JinaEmbeddingAdapter"
     assert _resolve_adapter_class("ollama").__name__ == "OllamaEmbeddingAdapter"
-    assert _resolve_adapter_class("vllm").__name__ == "OpenAICompatibleEmbeddingAdapter"
     assert _resolve_adapter_class("openrouter").__name__ == "OpenAICompatibleEmbeddingAdapter"
     assert _resolve_adapter_class("gemini").__name__ == "GeminiEmbeddingAdapter"
 
@@ -343,20 +342,6 @@ def test_every_registered_provider_has_adapter() -> None:
 
 
 def test_embedding_client_multimodal_detection_uses_model_level_metadata() -> None:
-    text_model = EmbeddingClient(
-        _build_config(
-            "siliconflow",
-            model="Qwen/Qwen3-Embedding-8B",
-            base_url="https://api.siliconflow.cn/v1/embeddings",
-        )
-    )
-    vision_model = EmbeddingClient(
-        _build_config(
-            "siliconflow",
-            model="Qwen/Qwen3-VL-Embedding-8B",
-            base_url="https://api.siliconflow.cn/v1/embeddings",
-        )
-    )
     cohere_v3 = EmbeddingClient(
         _build_config(
             "cohere",
@@ -365,6 +350,4 @@ def test_embedding_client_multimodal_detection_uses_model_level_metadata() -> No
         )
     )
 
-    assert text_model.supports_multimodal_contents() is False
-    assert vision_model.supports_multimodal_contents() is True
     assert cohere_v3.supports_multimodal_contents() is False

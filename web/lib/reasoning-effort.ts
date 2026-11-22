@@ -33,17 +33,8 @@ const OPENAI_PROVIDERS = new Set([
   "openai",
   "azure_openai",
   "openai_codex",
-  "github_copilot",
 ]);
-const BINARY_THINKING_PROVIDERS = new Set([
-  "deepseek",
-  "volcengine",
-  "volcengine_coding_plan",
-  "byteplus",
-  "byteplus_coding_plan",
-  "dashscope",
-  "minimax",
-]);
+const BINARY_THINKING_PROVIDERS = new Set(["deepseek"]);
 
 function includesAny(value: string, patterns: string[]): boolean {
   return patterns.some((pattern) => value.includes(pattern));
@@ -158,26 +149,10 @@ function tableReasoningEffortOptions(
   }
 
   if (BINARY_THINKING_PROVIDERS.has(provider)) {
-    const supported =
-      provider === "minimax" ||
-      includesAny(modelName, [
-        "deepseek-reasoner",
-        "deepseek-v4-pro",
-        "qwen3",
-        "qwen-3",
-        "qwq",
-        "qwen-plus",
-      ]);
-    if (supported) {
+    if (includesAny(modelName, ["deepseek-reasoner", "deepseek-v4-pro"])) {
       return options(["minimal", "high"], current);
     }
-    if (BINARY_THINKING_PROVIDERS.has(provider)) {
-      // Deliberately no selector for the rest — VolcEngine/BytePlus thinking
-      // models are switched on by the backend from the spec's
-      // reasoning_model_patterns, so an explicit per-model choice here would
-      // duplicate a decision the registry already owns.
-      return options([], current);
-    }
+    return options([], current);
   }
 
   if (OPENAI_PROVIDERS.has(provider)) {

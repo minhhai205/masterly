@@ -80,26 +80,8 @@ def supported_reasoning_efforts(
             levels = ["none", "low", "medium", "high"]
     elif provider == "custom":
         levels = ["none", "low", "medium", "high"]
-    elif provider in {
-        "deepseek",
-        "volcengine",
-        "volcengine_coding_plan",
-        "byteplus",
-        "byteplus_coding_plan",
-        "dashscope",
-        "minimax",
-    }:
-        if provider == "minimax" or any(
-            part in name
-            for part in (
-                "deepseek-reasoner",
-                "deepseek-v4-pro",
-                "qwen3",
-                "qwen-3",
-                "qwq",
-                "qwen-plus",
-            )
-        ):
+    elif provider == "deepseek":
+        if any(part in name for part in ("deepseek-reasoner", "deepseek-v4-pro")):
             levels = ["minimal", "high"]
     elif provider in {"openai", "azure_openai", "openai_codex"}:
         if "gpt-5.6-sol" in name:

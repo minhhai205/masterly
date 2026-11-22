@@ -1,14 +1,13 @@
 """Unified embedding client and adapters for all Masterly modules.
 
 Supported bindings are resolved by ``services.config.provider_runtime`` and
-currently include openai, custom, azure_openai, cohere, jina, ollama, vllm,
-siliconflow, aliyun, openrouter, plus legacy custom_openai_sdk configs.
+currently include openai, custom, azure_openai, gemini, cohere, jina, ollama,
+openrouter, plus legacy custom_openai_sdk configs.
 """
 
 from .adapters import (
     BaseEmbeddingAdapter,
     CohereEmbeddingAdapter,
-    DashScopeMultiModalEmbeddingAdapter,
     EmbeddingProviderError,
     EmbeddingRequest,
     EmbeddingResponse,
@@ -34,7 +33,6 @@ __all__ = [
     "EmbeddingResponse",
     "OpenAICompatibleEmbeddingAdapter",
     "OpenAISDKEmbeddingAdapter",
-    "DashScopeMultiModalEmbeddingAdapter",
     "CohereEmbeddingAdapter",
     "JinaEmbeddingAdapter",
     "OllamaEmbeddingAdapter",
