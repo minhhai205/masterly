@@ -172,6 +172,19 @@ async def require_auth(
     return payload
 
 
+async def optional_auth(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    cookie_token: str | None = Cookie(default=None, alias=COOKIE_NAME),
+) -> TokenPayload | None:
+    """Install the current user when a valid session is present; otherwise carry on
+    anonymously. For public endpoints whose answer depends on who is asking."""
+    token = _extract_token(authorization, cookie_token)
+    payload = decode_token(token) if token else None
+    if payload is not None:
+        _install_current_user(payload)
+    return payload
+
+
 async def require_admin(payload: TokenPayload = Depends(require_auth)) -> TokenPayload:
     """Require the administrator."""
     if payload.role != "admin":
@@ -203,6 +216,7 @@ async def ws_require_auth(ws: WebSocket) -> _CtxToken | _WsAuthFailed:
 
 __all__ = [
     "COOKIE_NAME",
+    "optional_auth",
     "require_admin",
     "require_auth",
     "reset_current_user",

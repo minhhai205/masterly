@@ -124,10 +124,18 @@ app.add_middleware(
 
 
 # Routers are imported only now: they read runtime settings at import time.
-from masterly.api.routers import auth  # noqa: E402
+from fastapi import Depends  # noqa: E402
+
+from masterly.api.routers import auth, settings  # noqa: E402
 
 # The auth router guards its own endpoints: status/login/logout are public.
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
+# Everything else needs a session. The public UI-settings read is mounted first
+# so the sign-in page can pick its theme and language before a session exists.
+_auth = [Depends(auth.require_auth)]
+app.include_router(settings.public_router, prefix="/api/settings", tags=["settings"])
+app.include_router(settings.router, prefix="/api/settings", tags=["settings"], dependencies=_auth)
 
 
 @app.get("/health/live")
