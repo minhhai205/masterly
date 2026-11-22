@@ -28,8 +28,6 @@ dependencies = [
     "json-repair>=0.57.0,<1.0.0",
     "jinja2>=3.1.0",
     "ddgs>=9.9.1",
-    "dashscope>=1.14.0",
-    "perplexityai>=0.1.0",
 ]
 
 [project.optional-dependencies]

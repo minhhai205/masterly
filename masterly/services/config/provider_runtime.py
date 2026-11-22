@@ -26,7 +26,6 @@ from masterly.services.provider_registry import (
 from .embedding_endpoint import (
     EMBEDDING_PROVIDER_ALIASES,
     EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS,
-    dashscope_embedding_endpoint,
     embedding_endpoint_validation_error,
     gemini_default_embedding_endpoint,
     normalize_embedding_endpoint_for_display,
@@ -80,31 +79,6 @@ SEARCH_PROVIDERS: dict[str, SearchProviderSpec] = {
     "jina": SearchProviderSpec(label="Jina", requires_api_key=True),
     "searxng": SearchProviderSpec(label="SearXNG", requires_base_url=True),
     "duckduckgo": SearchProviderSpec(label="DuckDuckGo"),
-    "perplexity": SearchProviderSpec(
-        label="Perplexity",
-        requires_api_key=True,
-        soft_fallback=False,
-        supports_answer=True,
-    ),
-    "serper": SearchProviderSpec(label="Serper", requires_api_key=True, soft_fallback=False),
-    "serply": SearchProviderSpec(label="Serply", requires_api_key=True, soft_fallback=False),
-    "firecrawl": SearchProviderSpec(label="Firecrawl", requires_api_key=True, soft_fallback=False),
-    # China-hosted engines. Doubao is the one that writes its own answer: Ark
-    # exposes web search only as a tool on a Doubao model, never standalone.
-    "doubao": SearchProviderSpec(
-        label="Doubao",
-        requires_api_key=True,
-        soft_fallback=False,
-        supports_answer=True,
-    ),
-    "bocha": SearchProviderSpec(label="Bocha", requires_api_key=True, soft_fallback=False),
-    "zhipu": SearchProviderSpec(label="Zhipu", requires_api_key=True, soft_fallback=False),
-    "qianfan": SearchProviderSpec(
-        label="Baidu Qianfan", requires_api_key=True, soft_fallback=False
-    ),
-    "aliyun_iqs": SearchProviderSpec(
-        label="Aliyun IQS", requires_api_key=True, soft_fallback=False
-    ),
 }
 
 # The credential-free provider every soft fallback lands on.
@@ -124,7 +98,7 @@ def supported_search_providers_hint() -> str:
     return ", ".join(name for name in SEARCH_PROVIDERS if name != "none")
 
 
-LLM_LOCALHOST_PROVIDERS = ("ollama", "vllm")
+LLM_LOCALHOST_PROVIDERS = ("ollama",)
 
 
 @dataclass(frozen=True)
@@ -206,48 +180,6 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         default_model="nomic-embed-text",
         default_dim=768,
     ),
-    "vllm": EmbeddingProviderSpec(
-        label="vLLM / LM Studio",
-        mode="local",
-        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["vllm"],
-        keywords=("vllm", "lmstudio"),
-        is_local=True,
-    ),
-    "lemonade": EmbeddingProviderSpec(
-        label="Lemonade Server",
-        mode="local",
-        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["lemonade"],
-        keywords=("lemonade",),
-        is_local=True,
-    ),
-    "siliconflow": EmbeddingProviderSpec(
-        label="SiliconFlow",
-        adapter="openai_compat",
-        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["siliconflow"],
-        keywords=(
-            "siliconflow",
-            "qwen3-embedding",
-            "qwen3-vl-embedding",
-            "bge-m3",
-            "Pro/BAAI",
-        ),
-        is_local=False,
-        default_model="Qwen/Qwen3-Embedding-8B",
-        default_dim=4096,
-        max_batch_items=32,
-        multimodal=True,
-    ),
-    "aliyun": EmbeddingProviderSpec(
-        label="Aliyun DashScope",
-        adapter="dashscope_native",
-        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["aliyun"],
-        keywords=("dashscope", "qwen3-vl-embedding", "qwen3-embedding", "aliyun", "bailian"),
-        is_local=False,
-        default_model="qwen3-vl-embedding",
-        default_dim=2560,
-        max_batch_items=20,
-        multimodal=True,
-    ),
     "custom": EmbeddingProviderSpec(
         label="OpenAI Compatible",
         mode="direct",
@@ -271,15 +203,6 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["openrouter"],
         keywords=("openrouter",),
         is_local=False,
-    ),
-    "orcarouter": EmbeddingProviderSpec(
-        label="OrcaRouter",
-        adapter="openai_compat",
-        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["orcarouter"],
-        keywords=("orcarouter", "orca_router"),
-        is_local=False,
-        default_model="openai/text-embedding-3-large",
-        default_dim=3072,
     ),
 }
 
@@ -498,9 +421,7 @@ def _choose_resolved_provider(
         return model_spec
 
     if _is_local_base_url(api_base):
-        if api_base and "11434" in api_base:
-            return find_by_name("ollama") or find_by_name("vllm") or find_by_name("openai")
-        return find_by_name("vllm") or find_by_name("ollama") or find_by_name("openai")
+        return find_by_name("ollama") or find_by_name("openai")
 
     for spec in PROVIDERS:
         configured = provider_pool.get(spec.name)
@@ -721,25 +642,6 @@ def _resolve_embedding_provider(
     api_base: str | None,
     provider_pool: dict[str, NormalizedProviderConfig],
 ) -> str:
-    if api_base:
-        # Older keyless Lemonade profiles were saved as generic OpenAI
-        # Compatible embeddings. Recognize its known endpoint before a Qwen3
-        # model name is mistaken for a remote embedding vendor (#1568).
-        try:
-            endpoint = urlparse(api_base if "://" in api_base else f"http://{api_base}")
-            lemonade_endpoint = (
-                endpoint.port == 13305
-                and endpoint.path.rstrip("/").endswith(("/v1/embeddings", "/api/v1/embeddings"))
-                and (
-                    (endpoint.hostname or "").lower()
-                    in {"localhost", "127.0.0.1", "::1", "lemonade"}
-                    or (endpoint.hostname or "").lower().endswith(".local")
-                )
-            )
-        except ValueError:
-            lemonade_endpoint = False
-        if lemonade_endpoint and hint in {None, "custom", "openai"}:
-            return "lemonade"
     if hint and hint in EMBEDDING_PROVIDERS:
         return hint
 
@@ -755,7 +657,7 @@ def _resolve_embedding_provider(
     if _is_local_base_url(api_base):
         if api_base and "11434" in api_base:
             return "ollama"
-        return "vllm"
+        return "custom"
 
     for provider_name, spec in EMBEDDING_PROVIDERS.items():
         configured = provider_pool.get(provider_name)
@@ -823,12 +725,6 @@ def resolve_embedding_runtime_config(
             api_base = gemini_default_embedding_endpoint(resolved_model)
         elif spec.default_api_base:
             api_base = spec.default_api_base
-    if provider_name == "aliyun":
-        # DashScope's SDK derives the endpoint from the model id and ignores any
-        # configured URL, so a saved multimodal endpoint would mislead the
-        # diagnostic for a text model (issue #660). Surface the true per-model
-        # endpoint the SDK will actually POST to.
-        api_base = dashscope_embedding_endpoint(resolved_model)
     api_version = active_api_version or ((mapped.api_version or "") if mapped else "")
     extra_headers = active_extra_headers or ((mapped.extra_headers or {}) if mapped else {})
 

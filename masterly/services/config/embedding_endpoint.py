@@ -92,8 +92,6 @@ def _gemini_endpoint_with_model(endpoint: str, model: str) -> str:
 EMBEDDING_PROVIDER_ALIASES = {
     "google": "gemini",
     "huggingface": "custom",
-    "lm_studio": "vllm",
-    "llama_cpp": "vllm",
     "openai_compatible": "custom",
 }
 
@@ -101,11 +99,7 @@ EMBEDDING_PROVIDER_LABELS = {
     "openai": "OpenAI",
     "gemini": "Gemini",
     "openrouter": "OpenRouter",
-    "orcarouter": "OrcaRouter",
     "jina": "Jina",
-    "vllm": "vLLM / LM Studio",
-    "lemonade": "Lemonade Server",
-    "siliconflow": "SiliconFlow",
     "ollama": "Ollama",
     "cohere": "Cohere",
 }
@@ -114,58 +108,16 @@ EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS = {
     "openai": "https://api.openai.com/v1/embeddings",
     "gemini": gemini_embedding_endpoint(GEMINI_DEFAULT_EMBEDDING_MODEL),
     "openrouter": "https://openrouter.ai/api/v1/embeddings",
-    "orcarouter": "https://api.orcarouter.ai/v1/embeddings",
     "cohere": "https://api.cohere.com/v2/embed",
     "jina": "https://api.jina.ai/v1/embeddings",
     "ollama": "http://localhost:11434/api/embed",
-    "vllm": "http://localhost:8000/v1/embeddings",
-    "lemonade": "http://localhost:13305/v1/embeddings",
-    "siliconflow": "https://api.siliconflow.cn/v1/embeddings",
-    "aliyun": (
-        "https://dashscope.aliyuncs.com/api/v1/services/embeddings/"
-        "multimodal-embedding/multimodal-embedding"
-    ),
 }
 
 EMBEDDING_PROVIDERS_REQUIRING_EMBEDDINGS_PATH = {
     "openai",
     "openrouter",
-    "orcarouter",
     "jina",
-    "vllm",
-    "lemonade",
-    "siliconflow",
 }
-
-# DashScope (Aliyun) serves text and multimodal embeddings from DIFFERENT native
-# endpoints, and the `dashscope` SDK derives the URL from the model id. A text
-# model (text-embedding-v1..v4) sent to the multimodal endpoint fails with HTTP
-# 400 "url error" (issue #660). These constants + predicate are the single
-# source of truth for which DashScope endpoint a given model uses, shared by the
-# runtime resolver (endpoint display) and the DashScope adapter (SDK routing).
-DASHSCOPE_MULTIMODAL_EMBEDDING_ENDPOINT = EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["aliyun"]
-DASHSCOPE_TEXT_EMBEDDING_ENDPOINT = (
-    "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding"
-)
-
-
-def is_dashscope_multimodal_embedding_model(model: str | None) -> bool:
-    """Whether a DashScope embedding model uses the multimodal endpoint.
-
-    Multimodal models (``qwen3-vl-embedding``, ``multimodal-embedding-v1``) use
-    the MultiModalEmbedding surface; text models (``text-embedding-v1..v4``) and
-    any unrecognised id fall through to the text-embedding surface.
-    """
-    name = str(model or "").strip().lower()
-    return "multimodal" in name or "vl-embedding" in name or name.endswith("-vl")
-
-
-def dashscope_embedding_endpoint(model: str | None) -> str:
-    """Return the native DashScope embedding endpoint the SDK will POST to."""
-    if is_dashscope_multimodal_embedding_model(model):
-        return DASHSCOPE_MULTIMODAL_EMBEDDING_ENDPOINT
-    return DASHSCOPE_TEXT_EMBEDDING_ENDPOINT
-
 
 def canonical_embedding_provider_name(name: str | None) -> str:
     value = str(name or "").strip().lower().replace("-", "_")

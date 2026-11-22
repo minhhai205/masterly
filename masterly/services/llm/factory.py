@@ -104,9 +104,7 @@ def _resolve_provider_spec(
         return model_spec
 
     if is_local_llm_server(base_url):
-        if base_url and "11434" in base_url:
-            return find_by_name("ollama") or find_by_name("vllm")
-        return find_by_name("vllm") or find_by_name("ollama")
+        return find_by_name("ollama")
 
     return find_by_name(fallback) or find_by_name("openai")
 

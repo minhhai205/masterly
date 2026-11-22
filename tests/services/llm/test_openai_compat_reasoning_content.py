@@ -160,16 +160,12 @@ def test_openrouter_none_reasoning_is_excluded_from_response() -> None:
     }
 
 
-@pytest.mark.parametrize("provider", ["deepseek", "dashscope"])
 @pytest.mark.parametrize("effort", ["none", "minimal", "minimum"])
-def test_provider_native_off_reasoning_disables_thinking(provider: str, effort: str) -> None:
-    kwargs = _build_services_kwargs(provider, effort)
+def test_provider_native_off_reasoning_disables_thinking(effort: str) -> None:
+    kwargs = _build_services_kwargs("deepseek", effort)
 
     assert "reasoning_effort" not in kwargs
-    if provider == "deepseek":
-        assert kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
-    else:
-        assert kwargs["extra_body"] == {"enable_thinking": False}
+    assert kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
 @pytest.mark.parametrize("binding", ["deepseek", "openai"])
@@ -314,13 +310,6 @@ def test_responses_body_replays_persisted_native_output_items() -> None:
     assert body["input"] == native_items
 
 
-def test_services_dashscope_minimal_reasoning_uses_enable_thinking_only() -> None:
-    kwargs = _build_services_kwargs("dashscope", "minimal")
-
-    assert "reasoning_effort" not in kwargs
-    assert kwargs["extra_body"] == {"enable_thinking": False}
-
-
 def test_services_custom_qwen_enables_thinking_without_top_level_effort() -> None:
     kwargs = _build_services_kwargs(
         "custom",
@@ -330,25 +319,6 @@ def test_services_custom_qwen_enables_thinking_without_top_level_effort() -> Non
 
     assert "reasoning_effort" not in kwargs
     assert kwargs["extra_body"] == {"enable_thinking": True}
-
-
-@pytest.mark.parametrize(
-    "model",
-    [
-        "kimi-k3",
-        "kimi-k2.7-code",
-        "kimi-k2.7-code-highspeed",
-        "kimi-k2.6",
-        "kimi-k2.5",
-        "kimi-latest",
-    ],
-)
-def test_services_moonshot_kimi_drops_temperature(model: str) -> None:
-    # Kimi models reject any explicit temperature (HTTP 400 "only 1 is
-    # allowed for this model"); the parameter must be omitted entirely.
-    kwargs = _build_services_kwargs("moonshot", None, model=model)
-
-    assert "temperature" not in kwargs
 
 
 def test_services_moonshot_v1_keeps_temperature() -> None:

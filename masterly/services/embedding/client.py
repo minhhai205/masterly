@@ -121,8 +121,7 @@ class EmbeddingClient:
         import asyncio
 
         # Clamp configured batch size against the provider's per-request item
-        # cap. SiliconFlow Qwen3 family caps at 32; DashScope at 20; others
-        # have generous defaults. Without this clamp, indexing a doc with many
+        # cap; most providers have generous defaults. Without this clamp, indexing a doc with many
         # chunks fails on the second batch even when "Test connection" passes.
         spec = EMBEDDING_PROVIDERS.get(self.config.binding)
         provider_max = spec.max_batch_items if spec else 256
