@@ -16,12 +16,13 @@ from fastapi import (
     File,
     Header,
     HTTPException,
+    Request,
     Response,
     UploadFile,
     WebSocket,
     status,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, field_validator
 
 from masterly.multi_user.context import (
@@ -38,6 +39,8 @@ from masterly.services.auth import (
     get_user_info,
     set_avatar,
 )
+from masterly.services.codex_auth.contracts import CodexAuthError
+from masterly.services.codex_auth.service import deliver_codex_oauth_callback
 from masterly.services.config import load_auth_settings
 
 logger = logging.getLogger(__name__)
@@ -229,6 +232,40 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Session endpoints (public)
 # ---------------------------------------------------------------------------
+
+
+@router.get("/openai-codex/callback")
+async def receive_codex_oauth_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> HTMLResponse:
+    """Hand a ChatGPT sign-in redirect to the login waiting for it.
+
+    Public on purpose: the browser arrives from the provider without a session.
+    The one-time OAuth ``state`` identifies the login instead.
+    """
+    headers = {"Cache-Control": "no-store"}
+    try:
+        callback_state = state if len(request.query_params.getlist("state")) == 1 else None
+        await deliver_codex_oauth_callback(code, callback_state, error)
+    except CodexAuthError as exc:
+        return HTMLResponse(
+            (
+                "<!doctype html><title>Masterly Codex</title>"
+                "<p>Authentication could not be received. Return to Masterly and try again.</p>"
+            ),
+            status_code=exc.http_status,
+            headers=headers,
+        )
+    return HTMLResponse(
+        (
+            "<!doctype html><title>Masterly Codex</title>"
+            "<p>Authentication received. You can return to Masterly.</p>"
+        ),
+        headers=headers,
+    )
 
 
 @router.get("/status", response_model=AuthStatusResponse)

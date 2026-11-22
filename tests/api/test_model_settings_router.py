@@ -490,6 +490,106 @@ async def test_fetch_models_maps_provider_error_to_502(monkeypatch: pytest.Monke
 
 
 
+# --- ChatGPT (Codex) sign-in -------------------------------------------------
+
+
+class _FakeCodexOAuthService:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def start_login(self) -> dict[str, Any]:
+        self.calls.append("start")
+        return {
+            "operation_id": "operation-1",
+            "authorize_url": "https://auth.openai.com/oauth/authorize?state=opaque",
+            "expires_in": 300,
+        }
+
+    def public_status(self) -> dict[str, Any]:
+        self.calls.append("status")
+        return {
+            "connection": "connected",
+            "operation_id": None,
+            "operation_state": None,
+            "model_count": 1,
+            "catalog_source": "live",
+            "catalog_fetched_at": 1_000,
+            "active_model": "gpt-5.6-sol",
+            "activated": False,
+            "error_code": None,
+        }
+
+    async def cancel_login(self) -> dict[str, Any]:
+        self.calls.append("cancel")
+        return self.public_status()
+
+    async def logout(self) -> dict[str, Any]:
+        self.calls.append("logout")
+        return self.public_status()
+
+    async def refresh_models(self) -> dict[str, Any]:
+        self.calls.append("refresh")
+        return self.public_status()
+
+
+@pytest.mark.asyncio
+async def test_codex_oauth_routes_return_only_public_service_payloads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeCodexOAuthService()
+    monkeypatch.setattr(settings_router, "get_codex_oauth_service", lambda: fake)
+
+    started = await settings_router.start_openai_codex_oauth()
+    status_payload = await settings_router.get_openai_codex_oauth_status()
+    cancelled = await settings_router.cancel_openai_codex_oauth()
+    refreshed = await settings_router.refresh_openai_codex_models()
+    logged_out = await settings_router.logout_openai_codex_oauth()
+
+    assert set(started) == {"operation_id", "authorize_url", "expires_in"}
+    assert (
+        "token"
+        not in json.dumps([started, status_payload, cancelled, refreshed, logged_out]).lower()
+    )
+    assert fake.calls == [
+        "start",
+        "status",
+        "cancel",
+        "status",
+        "refresh",
+        "status",
+        "logout",
+        "status",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_codex_oauth_error_maps_to_sanitized_http_detail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi import HTTPException
+
+    from masterly.services.codex_auth.contracts import CodexAuthError
+
+    class FailingService:
+        async def start_login(self) -> dict[str, Any]:
+            raise CodexAuthError(
+                "token_exchange_failed",
+                "Codex sign-in could not be completed.",
+                502,
+            )
+
+    monkeypatch.setattr(settings_router, "get_codex_oauth_service", lambda: FailingService())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await settings_router.start_openai_codex_oauth()
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == {
+        "code": "token_exchange_failed",
+        "message": "Codex sign-in could not be completed.",
+    }
+
+
 # --- Access through the real app -------------------------------------------
 
 
@@ -528,6 +628,10 @@ def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
         assert client.put("/api/settings/draft", json={"catalog": {}}).status_code == 403
         assert client.delete("/api/settings/draft").status_code == 403
         assert client.post("/api/settings/apply").status_code == 403
+        # The ChatGPT login is shared, so only the administrator manages it.
+        assert client.get("/api/settings/providers/openai-codex/oauth/status").status_code == 403
+        assert client.post("/api/settings/providers/openai-codex/oauth/start").status_code == 403
+        assert client.post("/api/settings/providers/openai-codex/oauth/logout").status_code == 403
         assert (
             client.post(
                 "/api/settings/apply/service", json={"service": "llm", "config": {}}
