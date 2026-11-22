@@ -1,4 +1,4 @@
-import { Brain, KeyRound, ListChecks, Palette, type LucideIcon } from "lucide-react";
+import { Brain, Database, KeyRound, ListChecks, Palette, Search, type LucideIcon } from "lucide-react";
 
 import type { SettingsAccess } from "@/features/settings/navigation/settings-access";
 
@@ -60,12 +60,26 @@ export const SETTINGS_PAGE_GROUPS: SettingsPageGroup[] = [
         icon: ListChecks,
         adminOnly: true,
       },
+      {
+        key: "embedding",
+        label: "Embedding models",
+        blurb: "Embedding models, dimensions, and connection tests.",
+        icon: Database,
+        adminOnly: true,
+      },
+      {
+        key: "search",
+        label: "Search",
+        blurb: "Web search providers.",
+        icon: Search,
+        adminOnly: true,
+      },
     ],
   },
 ];
 
 /** Master–detail pages (a list beside an editor) need the wider content box. */
-const WIDE_SETTINGS_PAGES = new Set(["connections", "llm"]);
+const WIDE_SETTINGS_PAGES = new Set(["connections", "llm", "embedding", "search"]);
 
 export function isWideSettingsPage(key: string): boolean {
   return WIDE_SETTINGS_PAGES.has(key);

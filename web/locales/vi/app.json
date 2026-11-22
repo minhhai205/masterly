@@ -323,5 +323,9 @@
   "session": "phiên",
   "text": "văn bản",
   "{{count}} configured models": "{{count}} mô hình đã cấu hình",
-  "{{count}} models available": "Có {{count}} mô hình"
+  "{{count}} models available": "Có {{count}} mô hình",
+  "Embedding models, dimensions, and connection tests.": "Mô hình embedding, số chiều và kiểm tra kết nối.",
+  "Web search providers.": "Nhà cung cấp tìm kiếm web.",
+  "Manage embedding models for retrieval and knowledge bases.": "Quản lý mô hình embedding dùng cho truy xuất và kho tài liệu.",
+  "Configure and test search engines using saved providers.": "Cấu hình và kiểm tra công cụ tìm kiếm bằng các nhà cung cấp đã lưu."
 }
