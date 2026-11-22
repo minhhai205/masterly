@@ -11,18 +11,23 @@ masked value comes back.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 import contextlib
 from copy import deepcopy
+import json
 import logging
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from masterly.multi_user.context import get_current_user
 from masterly.services.codex_auth import reconcile_codex_catalog_update
 from masterly.services.config import (
+    CATALOG_SECRET_MASK,
+    get_config_test_runner,
     get_model_catalog_service,
     redact_catalog_secrets,
     restore_catalog_secrets,
@@ -81,6 +86,34 @@ class SettingsDraftPayload(BaseModel):
     catalog: dict[str, Any] | None = None
     # Opaque per-page state, keyed by the string the page registers with.
     extensions: dict[str, Any] = Field(default_factory=dict)
+
+
+class FetchModelsPayload(BaseModel):
+    binding: str = ""
+    base_url: str = ""
+    api_key: str | None = None
+    profile_id: str | None = None
+    # Which LLM-shaped service the profile lives in (for resolving a masked key).
+    service: Literal["llm", "task"] = "llm"
+    # The profile's API format; decides whether /models takes Anthropic headers.
+    api_format: str | None = None
+
+
+class ModelCapabilitiesQuery(BaseModel):
+    binding: str = ""
+    model: str = ""
+
+
+class ProviderProbePayload(BaseModel):
+    binding: str = "openai"
+    base_url: str = ""
+    api_key: str | list[str] | None = None
+    api_format: str = "auto"
+    api_version: str = ""
+    extra_headers: dict[str, str] | str | None = None
+    service: ServiceName = "llm"
+    profile_id: str | None = None
+    connection_id: str | None = None
 
 
 @contextlib.contextmanager
@@ -495,3 +528,163 @@ async def apply_catalog(payload: CatalogPayload | None = None):
         "catalog": redact_catalog_secrets(catalog_after),
         "runtime": applied,
     }
+
+
+@router.post("/test-provider")
+async def test_provider_connection(payload: ProviderProbePayload):
+    """Test current form credentials, resolving masks from draft/live settings by ID."""
+    _require_settings_admin()
+    from masterly.services.settings.provider_probe import probe_provider, probe_search_provider
+
+    current = get_model_catalog_service().load()
+    saved = get_settings_draft_service().load().get("catalog")
+    source = restore_catalog_secrets(saved, current) if isinstance(saved, dict) else current
+    fields = payload.model_dump()
+    if payload.connection_id:
+        fields["id"] = payload.connection_id
+        proposed = {"connections": [fields]}
+        resolved = restore_catalog_secrets(proposed, source)["connections"][0]
+    else:
+        fields["id"] = payload.profile_id
+        proposed = {"services": {payload.service: {"profiles": [fields]}}}
+        resolved = restore_catalog_secrets(proposed, source)["services"][payload.service][
+            "profiles"
+        ][0]
+    from masterly.services.keypool import primary_api_key
+
+    key = primary_api_key(resolved.get("api_key"))
+    headers = resolved.get("extra_headers") or {}
+    if isinstance(headers, str):
+        try:
+            headers = json.loads(headers)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid extra headers JSON.") from exc
+    if not isinstance(headers, dict) or any(not isinstance(v, str) for v in headers.values()):
+        raise HTTPException(status_code=400, detail="Extra headers must contain text values.")
+    if (
+        (payload.api_key == CATALOG_SECRET_MASK and not key)
+        or key == CATALOG_SECRET_MASK
+        or any(v == CATALOG_SECRET_MASK for v in headers.values())
+    ):
+        raise HTTPException(
+            status_code=400, detail="Saved credentials were not found. Enter the key again."
+        )
+    if payload.service == "search":
+        return await probe_search_provider(payload.binding, payload.base_url, key)
+    return await probe_provider(
+        payload.binding, payload.base_url, key, payload.api_format, headers, payload.api_version
+    )
+
+
+@router.post("/fetch-models")
+async def fetch_models_from_provider(payload: FetchModelsPayload):
+    """List the model IDs an OpenAI-compatible provider exposes.
+
+    Thin HTTP surface over ``factory.fetch_models`` so the settings UI can
+    populate a model picker from ``base_url`` + ``api_key`` instead of making
+    the user type model IDs by hand.
+    """
+    _require_settings_admin()
+    from masterly.services.llm.factory import fetch_models as fetch_llm_models
+
+    base_url = (payload.base_url or "").strip()
+    binding = (payload.binding or "").strip().lower() or "openai"
+    if not base_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="base_url is required for this provider.",
+        )
+
+    api_key = payload.api_key
+    api_format = (payload.api_format or "").strip().lower()
+    if payload.profile_id and (api_key == CATALOG_SECRET_MASK or not api_format):
+        service = get_model_catalog_service().load().get("services", {}).get(payload.service, {})
+        profile = next(
+            (item for item in service.get("profiles", []) if item.get("id") == payload.profile_id),
+            None,
+        )
+        if api_key == CATALOG_SECRET_MASK:
+            api_key = profile.get("api_key") if profile else None
+        if not api_format and profile:
+            api_format = str(profile.get("api_format") or "")
+
+    try:
+        model_ids = await fetch_llm_models(binding, base_url, api_key, api_format or "auto")
+    except Exception as exc:  # noqa: BLE001 — surface any provider error as 502
+        logger.exception("Failed to fetch models from %s", base_url)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Provider request failed: {exc}",
+        ) from exc
+
+    return {"models": [{"id": model_id, "name": model_id} for model_id in model_ids]}
+
+
+@router.post("/model-capabilities")
+async def resolve_model_capabilities(payload: ModelCapabilitiesQuery):
+    """What the built-in capability tables assume for one provider/model pair.
+
+    The settings UI shows these as the value "Auto" resolves to next to each
+    per-model override, so a user can see what they are overriding.
+    """
+    _require_settings_admin()
+    from masterly.services.llm.capabilities import effective_capabilities
+
+    binding = (payload.binding or "").strip().lower() or "openai"
+    model = (payload.model or "").strip()
+    return {
+        "binding": binding,
+        "model": model,
+        "defaults": effective_capabilities(binding, model),
+    }
+
+
+@router.post("/tests/{service}/start")
+async def start_service_test(service: ServiceName, payload: CatalogPayload | None = None):
+    _require_settings_admin()
+    catalog = None
+    if payload is not None:
+        catalog_service = get_model_catalog_service()
+        current = catalog_service.load()
+        saved = get_settings_draft_service().load().get("catalog")
+        catalog = (
+            restore_catalog_secrets(payload.catalog, saved)
+            if isinstance(saved, dict)
+            else payload.catalog
+        )
+        catalog = restore_catalog_secrets(catalog, current)
+        catalog = catalog_service.resolve_connections(catalog)
+    run = get_config_test_runner().start(service, catalog)
+    return {"run_id": run.id}
+
+
+@router.get("/tests/{service}/{run_id}/events")
+async def stream_service_test_events(service: str, run_id: str, request: Request):
+    _require_settings_admin()
+    runner = get_config_test_runner()
+    run = runner.get(run_id)
+
+    async def event_stream():
+        sent = 0
+        while True:
+            if await request.is_disconnected():
+                return
+            events = run.snapshot(sent)
+            if events:
+                for event in events:
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                sent += len(events)
+                if events[-1]["type"] in {"completed", "failed"}:
+                    return
+            else:
+                yield "event: heartbeat\ndata: {}\n\n"
+            await asyncio.sleep(0.35)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/tests/{service}/{run_id}/cancel")
+async def cancel_service_test(service: str, run_id: str):
+    _require_settings_admin()
+    get_config_test_runner().cancel(run_id)
+    return {"message": "Cancelled"}
