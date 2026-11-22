@@ -43,6 +43,9 @@ def _cors_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
+    from masterly.services.auth import ensure_declared_admin
+
+    ensure_declared_admin()
     get_path_service().get_workspace_dir().mkdir(parents=True, exist_ok=True)
     app.state.ready = True
     yield
@@ -118,6 +121,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Routers are imported only now: they read runtime settings at import time.
+from masterly.api.routers import auth  # noqa: E402
+
+# The auth router guards its own endpoints: status/login/logout are public.
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 
 @app.get("/health/live")

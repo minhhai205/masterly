@@ -110,6 +110,28 @@ def add_user(
     logger.info("User '%s' saved with role=%r", username, record.get("role", "user"))
 
 
+def ensure_declared_admin() -> None:
+    """Keep the administrator declared in auth.json in the account store.
+
+    Called at startup. The account is written to the store so it has a stable id,
+    a join date and an avatar like any other account; its password always follows
+    auth.json, so changing the hash there takes effect at the next start.
+    """
+    if not AUTH_USERNAME or not AUTH_PASSWORD_HASH:
+        logger.warning(
+            "No administrator declared in data/user/settings/auth.json "
+            "(username and password_hash) — nobody can sign in yet."
+        )
+        return
+    from masterly.multi_user.identity import load_users, save_user
+
+    stored = load_users().get(AUTH_USERNAME)
+    if stored and stored.get("hash") == AUTH_PASSWORD_HASH and stored.get("role") == "admin":
+        return
+    save_user(AUTH_USERNAME, AUTH_PASSWORD_HASH, role="admin")
+    logger.info("Administrator '%s' synced from auth.json", AUTH_USERNAME)
+
+
 def list_users() -> list[dict]:
     """Return public info dicts (username, role, created_at, …) — no hashes."""
     from masterly.multi_user.identity import list_user_info
