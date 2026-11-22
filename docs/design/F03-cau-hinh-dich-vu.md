@@ -54,7 +54,7 @@ Backend
 ```text
 data/
 ├─ system/
-│  └─ secrets/<mã quản trị viên>/   phiên đăng nhập ChatGPT, chỉ chủ tiến trình đọc được
+│  └─ user-secrets/local-admin/     phiên đăng nhập ChatGPT, chỉ chủ tiến trình đọc được
 └─ user/settings/                  cấu hình hệ thống (thư mục của quản trị viên)
    ├─ model_catalog.json           danh mục mô hình, dùng chung cho mọi tài khoản
    ├─ settings_draft.json          bản nháp chưa áp dụng (chỉ có khi đang sửa dở)
@@ -97,9 +97,9 @@ ghi khác.
 | `POST /test-provider` | loại, địa chỉ, khóa (có thể là `***`) | kết nối được hay không, lỗi nếu có |
 | `POST /fetch-models` | như trên | danh sách mô hình nhà cung cấp có |
 | `POST /model-capabilities` | loại nhà cung cấp, mã mô hình | độ dài ngữ cảnh, khả năng đã biết |
-| `POST /tests/{dịch vụ}/start` | dịch vụ cần kiểm tra | mã lượt chạy |
-| `GET /tests/{dịch vụ}/{mã}/events` | | luồng sự kiện (SSE): từng bước, kết quả |
-| `POST /tests/{dịch vụ}/{mã}/cancel` | | dừng lượt chạy |
+| `POST /tests/{service}/start` | dịch vụ cần kiểm tra | mã lượt chạy |
+| `GET /tests/{service}/{run_id}/events` | | luồng sự kiện (SSE): từng bước, kết quả |
+| `POST /tests/{service}/{run_id}/cancel` | | dừng lượt chạy |
 | `POST /providers/openai-codex/oauth/start` | | địa chỉ đăng nhập ChatGPT |
 | `GET /providers/openai-codex/oauth/status` | | đang chờ, đã đăng nhập hay lỗi |
 | `POST /providers/openai-codex/oauth/complete` | địa chỉ quay về (dán tay) | trạng thái đăng nhập |
@@ -128,7 +128,7 @@ Khai báo nhà cung cấp và chọn mô hình:
 
 Kiểm tra mô hình:
 
-1. Quản trị viên bấm chạy thử một mô hình; web gọi `tests/{dịch vụ}/start`.
+1. Quản trị viên bấm chạy thử một mô hình; web gọi `tests/{service}/start`.
 2. Backend tạo lượt chạy, gửi một yêu cầu thật tới mô hình đang chọn.
 3. Web nghe luồng sự kiện và hiện từng bước: địa chỉ gọi tới, câu trả lời mẫu,
    độ dài ngữ cảnh dò được, lỗi nếu có.
