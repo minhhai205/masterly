@@ -1,4 +1,4 @@
-import { Palette, type LucideIcon } from "lucide-react";
+import { Brain, KeyRound, ListChecks, Palette, type LucideIcon } from "lucide-react";
 
 import type { SettingsAccess } from "@/features/settings/navigation/settings-access";
 
@@ -36,10 +36,36 @@ export const SETTINGS_PAGE_GROUPS: SettingsPageGroup[] = [
       },
     ],
   },
+  {
+    label: "Models & services",
+    pages: [
+      {
+        key: "connections",
+        label: "Providers",
+        blurb: "Manage provider names, addresses, credentials, and connectivity.",
+        icon: KeyRound,
+        adminOnly: true,
+      },
+      {
+        key: "llm",
+        label: "Language models",
+        blurb: "Model names, context windows, capabilities, and connection tests.",
+        icon: Brain,
+        adminOnly: true,
+      },
+      {
+        key: "task-models",
+        label: "Task models",
+        blurb: "The model behind the calls Masterly makes on its own.",
+        icon: ListChecks,
+        adminOnly: true,
+      },
+    ],
+  },
 ];
 
 /** Master–detail pages (a list beside an editor) need the wider content box. */
-const WIDE_SETTINGS_PAGES = new Set<string>();
+const WIDE_SETTINGS_PAGES = new Set(["connections", "llm"]);
 
 export function isWideSettingsPage(key: string): boolean {
   return WIDE_SETTINGS_PAGES.has(key);
