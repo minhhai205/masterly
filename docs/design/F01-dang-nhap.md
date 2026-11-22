@@ -56,7 +56,7 @@ data/
 │  │                       và interface.json của quản trị viên
 │  ├─ workspace/           nội dung học của không gian mặc định
 │  └─ logs/
-└─ users/<mã tài khoản>/   dữ liệu của từng người học, cùng cấu trúc với data/user
+└─ users/<user_id>/        dữ liệu của từng người học, cùng cấu trúc với data/user
 ```
 
 Tài khoản (một bản ghi trong `users.json`):
@@ -69,7 +69,7 @@ Tài khoản (một bản ghi trong `users.json`):
 | role | `admin` hoặc `user` (người học) |
 | created_at | Ngày tham gia |
 | disabled | Khóa tài khoản |
-| avatar | Rỗng, `icon:<biểu tượng>:<màu>` hoặc `img:<phiên bản>` |
+| avatar | Rỗng, `icon:<name>:<color>` hoặc `img:<version>` |
 
 Cài đặt giao diện (`interface.json` của từng tài khoản): `theme` (`light`, `dark`),
 `language` (`vi`, `en`).
@@ -84,7 +84,7 @@ Cài đặt giao diện (`interface.json` của từng tài khoản): `theme` (`
 | `GET /api/auth/profile` | có phiên | | thông tin tài khoản của chính mình |
 | `PUT /api/auth/profile` | có phiên | biểu tượng ảnh đại diện | ảnh đại diện mới |
 | `PUT, DELETE /api/auth/profile/avatar` | có phiên | tệp ảnh PNG, JPEG, WebP, tối đa 1 MB | ảnh đại diện mới |
-| `GET /api/auth/avatar/{mã}` | có phiên | | tệp ảnh |
+| `GET /api/auth/avatar/{user_id}` | có phiên | | tệp ảnh |
 | `GET /api/settings/ui` | công khai | cookie phiên (nếu có) | theme, ngôn ngữ của tài khoản (hoặc mặc định) |
 | `PUT /api/settings/ui` | có phiên | theme và/hoặc ngôn ngữ | cài đặt sau khi lưu |
 
