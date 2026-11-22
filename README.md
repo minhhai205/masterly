@@ -43,7 +43,7 @@ nhận việc giảng giải và đặt câu hỏi.
 **Tài khoản và quản trị**
 
 - Mỗi người dùng có tài khoản và dữ liệu riêng.
-- Ai cũng tự đăng ký được tài khoản root; root cấu hình mô hình AI và tạo, xóa
+- Ai cũng tự đăng ký được tài khoản chủ nhóm; chủ nhóm cấu hình mô hình AI và tạo, xóa
   tài khoản người học cho nhóm của mình.
 
 ## Trạng thái

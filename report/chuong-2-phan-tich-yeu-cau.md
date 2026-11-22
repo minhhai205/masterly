@@ -85,21 +85,21 @@ Hình 2.1. Biểu đồ hoạt động của quy trình học theo lộ trình
 ### 2.1.5. Phạm vi hệ thống
 
 - Ứng dụng web, giao diện tiếng Việt và tiếng Anh.
-- Mỗi người dùng có tài khoản và dữ liệu riêng. Ai cũng tự đăng ký được một tài khoản root bằng email và mật khẩu; root cấp tài khoản cho người học trong nhóm của mình.
+- Mỗi người dùng có tài khoản và dữ liệu riêng. Ai cũng tự đăng ký được một tài khoản chủ nhóm bằng email và mật khẩu; chủ nhóm cấp tài khoản cho người học trong nhóm của mình.
 - Việc sinh câu trả lời, xử lý tài liệu và tìm kiếm web dùng dịch vụ AI bên ngoài; hệ thống không tự huấn luyện mô hình.
 
 ## 2.2. Yêu cầu chức năng
 
 ### 2.2.1. Xác định các tác nhân
 
-Hệ thống có hai tác nhân. Mỗi root cùng các người học do root đó cấp tài khoản tạo thành một nhóm; hệ thống có nhiều nhóm và các nhóm tách biệt nhau. Các dịch vụ bên ngoài mà hệ thống kết nối tới không phải tác nhân.
+Hệ thống có hai tác nhân. Mỗi chủ nhóm cùng các người học do chủ nhóm đó cấp tài khoản tạo thành một nhóm; hệ thống có nhiều nhóm và các nhóm tách biệt nhau. 
 
 Bảng 2.2. Danh sách các tác nhân của hệ thống
 
 | STT | Tác nhân | Mô tả |
 |---|---|---|
-| 1 | Người học | Người dùng tài khoản do root cấp, dùng các chức năng học tập trên dữ liệu của riêng mình. |
-| 2 | Root | Người tự đăng ký tài khoản. Root học như người học, thêm quyền quản lý tài khoản người học trong nhóm và cấu hình các dịch vụ bên ngoài cho nhóm. |
+| 1 | Người học | Người dùng tài khoản do chủ nhóm cấp, dùng các chức năng học tập trên dữ liệu của riêng mình. |
+| 2 | Chủ nhóm | Người tự đăng ký tài khoản. Chủ nhóm học như người học, thêm quyền quản lý tài khoản người học trong nhóm và cấu hình các dịch vụ bên ngoài cho nhóm. |
 
 ### 2.2.2. Biểu đồ ca sử dụng tổng quát
 
@@ -107,9 +107,9 @@ Các ca sử dụng được chia thành ba nhóm (Hình 2.2):
 
 - Học theo lộ trình: phần lõi của hệ thống.
 - Hỗ trợ học tập: các chức năng phục vụ việc học, gồm hỏi đáp, tài liệu, ghi chép, bộ nhớ và không gian học.
-- Quản lý nhóm: phần root dùng để lập nhóm học và đưa các dịch vụ bên ngoài vào hoạt động.
+- Quản lý nhóm: phần chủ nhóm dùng để lập nhóm học và cấu hình các dịch vụ bên ngoài cho một nhóm.
 
-Người học dùng các ca sử dụng của hai nhóm đầu. Root có toàn bộ ca sử dụng của người học, thêm cấp và thu hồi tài khoản, cấu hình dịch vụ bên ngoài.
+Người học dùng các ca sử dụng của hai nhóm đầu. Chủ nhóm có toàn bộ ca sử dụng của người học, thêm cấp và thu hồi tài khoản, cấu hình dịch vụ bên ngoài.
 
 ![Hình 2.2. Biểu đồ ca sử dụng tổng quát của hệ thống Masterly](images/ca-su-dung-tong-quat.png)
 
@@ -128,8 +128,8 @@ Bảng 2.3. Danh sách các ca sử dụng của hệ thống
 | | UC2.3 | Ghi chép trong lúc học | Người học |
 | | UC2.4 | Điều chỉnh bộ nhớ người học | Người học |
 | | UC2.5 | Tổ chức không gian học | Người học |
-| 3. Quản lý nhóm | UC3.1 | Cấp và thu hồi tài khoản | Root |
-| | UC3.2 | Cấu hình dịch vụ bên ngoài | Root |
+| 3. Quản lý nhóm | UC3.1 | Cấp và thu hồi tài khoản | Chủ nhóm |
+| | UC3.2 | Cấu hình dịch vụ bên ngoài | Chủ nhóm |
 
 ### 2.2.3. Đặc tả các ca sử dụng
 
@@ -400,44 +400,44 @@ Hậu điều kiện: Không gian học được tạo hoặc thay đổi; các 
 
 #### UC3.1 - Cấp và thu hồi tài khoản
 
-Tác nhân chính: Root.
+Tác nhân chính: Chủ nhóm.
 
-Mô tả tóm lược: Hình 2.12 mô tả ca sử dụng root cấp tài khoản cho người học mới trong nhóm và thu hồi tài khoản không còn dùng. Người học đăng nhập bằng tài khoản được cấp.
+Mô tả tóm lược: Hình 2.12 mô tả ca sử dụng chủ nhóm cấp tài khoản cho người học mới trong nhóm và thu hồi tài khoản không còn dùng. Người học đăng nhập bằng tài khoản được cấp.
 
 ![Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản](images/uc3-1-cap-va-thu-hoi-tai-khoan.png)
 
 Hình 2.12. Biểu đồ ca sử dụng UC3.1 - Cấp và thu hồi tài khoản
 
-Luồng cơ bản: luồng bắt đầu khi root mở trang quản lý tài khoản và kết thúc khi tài khoản mới được tạo.
+Luồng cơ bản: luồng bắt đầu khi chủ nhóm mở trang quản lý tài khoản và kết thúc khi tài khoản mới được tạo.
 
 Bảng 2.13. Luồng cơ bản của UC3.1
 
 | Hành động của tác nhân | Phản ứng của hệ thống | Dữ liệu liên quan |
 |---|---|---|
 | 1. Mở trang quản lý tài khoản. | 2. Hiển thị danh sách, thông tin các tài khoản trong nhóm. | Danh sách tài khoản |
-| 3. Chọn cấp tài khoản mới, nhập email và mật khẩu. | 4. Kiểm tra thông tin hợp lệ rồi tạo tài khoản trong nhóm; tài khoản mới dùng được ngay các dịch vụ bên ngoài root đã cấu hình. | Email, mật khẩu |
+| 3. Chọn cấp tài khoản mới, nhập email và mật khẩu. | 4. Kiểm tra thông tin hợp lệ rồi tạo tài khoản trong nhóm; tài khoản mới dùng được ngay các dịch vụ bên ngoài chủ nhóm đã cấu hình. | Email, mật khẩu |
 | | 5. Báo đã tạo và thêm tài khoản vào danh sách. | Tài khoản |
 
 Luồng thay thế:
 
-- Luồng thay thế 1 (Thu hồi tài khoản): tại bước 3, root chọn thu hồi một tài khoản trong nhóm và xác nhận. Hệ thống xóa tài khoản đó; người dùng đó không đăng nhập được nữa.
+- Luồng thay thế 1 (Thu hồi tài khoản): tại bước 3, chủ nhóm chọn thu hồi một tài khoản trong nhóm và xác nhận. Hệ thống xóa tài khoản đó; người dùng đó không đăng nhập được nữa.
 - Luồng thay thế 2 (Email đã được dùng): tại bước 4, nếu email đã có tài khoản, hệ thống báo lỗi và yêu cầu nhập email khác.
 
-Tiền điều kiện: Root đã đăng nhập.
+Tiền điều kiện: Chủ nhóm đã đăng nhập.
 
 Hậu điều kiện: Tài khoản mới đăng nhập được ngay; tài khoản bị thu hồi không đăng nhập được nữa.
 
 #### UC3.2 - Cấu hình dịch vụ bên ngoài
 
-Tác nhân chính: Root.
+Tác nhân chính: Chủ nhóm.
 
-Mô tả tóm lược: Hình 2.13 mô tả ca sử dụng root khai báo các dịch vụ AI bên ngoài và chọn mô hình dùng chung cho cả nhóm. Có ba dịch vụ: mô hình ngôn ngữ lớn (LLM) để trả lời câu hỏi, mô hình nhúng (embedding) để xử lý tài liệu, và dịch vụ tìm kiếm web. Chỉ root thấy và sửa được phần cấu hình của nhóm.
+Mô tả tóm lược: Hình 2.13 mô tả ca sử dụng chủ nhóm khai báo các dịch vụ AI bên ngoài và chọn mô hình dùng chung cho cả nhóm. Có ba dịch vụ: mô hình ngôn ngữ lớn (LLM) để trả lời câu hỏi, mô hình nhúng (embedding) để xử lý tài liệu, và dịch vụ tìm kiếm web. Chỉ chủ nhóm thấy và sửa được phần cấu hình của nhóm.
 
 ![Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài](images/uc3-2-cau-hinh-dich-vu-ben-ngoai.png)
 
 Hình 2.13. Biểu đồ ca sử dụng UC3.2 - Cấu hình dịch vụ bên ngoài
 
-Luồng cơ bản: luồng bắt đầu khi root mở trang cấu hình dịch vụ và kết thúc khi đã chọn mô hình cho các dịch vụ.
+Luồng cơ bản: luồng bắt đầu khi chủ nhóm mở trang cấu hình dịch vụ và kết thúc khi đã chọn mô hình cho các dịch vụ.
 
 Bảng 2.14. Luồng cơ bản của UC3.2
 
@@ -450,9 +450,9 @@ Bảng 2.14. Luồng cơ bản của UC3.2
 
 Luồng thay thế:
 
-- Luồng thay thế 1 (Kết nối không thành công): tại bước 6, nếu không kết nối được, ví dụ khóa truy cập sai, hệ thống báo lỗi kèm lý do. Root sửa thông tin rồi kiểm tra lại.
+- Luồng thay thế 1 (Kết nối không thành công): tại bước 6, nếu không kết nối được, ví dụ khóa truy cập sai, hệ thống báo lỗi kèm lý do. Chủ nhóm sửa thông tin rồi kiểm tra lại.
 
-Tiền điều kiện: Root đã đăng nhập.
+Tiền điều kiện: Chủ nhóm đã đăng nhập.
 
 Hậu điều kiện: Các dịch vụ bên ngoài được cấu hình và kiểm tra; mọi người trong nhóm dùng chung cấu hình này.
 
@@ -462,9 +462,9 @@ Ngoài các chức năng ở mục 2.2, hệ thống cần đáp ứng các yêu
 
 Bảo mật và quyền riêng tư:
 
-- Người dùng tự đăng ký tài khoản root bằng email và mật khẩu, hoặc dùng tài khoản do root cấp; phiên đăng nhập có thời hạn.
+- Người dùng tự đăng ký tài khoản chủ nhóm bằng email và mật khẩu, hoặc dùng tài khoản do chủ nhóm cấp; phiên đăng nhập có thời hạn.
 - Dữ liệu của mỗi người được tách riêng; người học chỉ xem được dữ liệu của mình. Các nhóm tách biệt nhau.
-- Khóa truy cập các dịch vụ bên ngoài chỉ root của nhóm sửa được và không bao giờ hiển thị đầy đủ.
+- Khóa truy cập các dịch vụ bên ngoài chỉ chủ nhóm sửa được và không bao giờ hiển thị đầy đủ.
 
 Tin cậy:
 
@@ -490,6 +490,6 @@ Khả năng thay thế:
 
 Chương này đã khảo sát bài toán tự học bằng AI và các giải pháp hiện có, từ đó xác định Masterly là một vòng học khép kín: lập lộ trình theo mục tiêu, học từng điểm kiến thức đến khi nắm vững và ôn tập theo lịch.
 
-Hệ thống có hai tác nhân là người học và root, với 11 ca sử dụng chia thành ba nhóm. Mỗi ca sử dụng được đặc tả bằng biểu đồ riêng, luồng cơ bản và các luồng thay thế chính. Các yêu cầu phi chức năng tập trung vào bảo mật dữ liệu, độ tin cậy, tính nhất quán khi xét nắm vững và tính dễ dùng.
+Hệ thống có hai tác nhân là người học và chủ nhóm, với 11 ca sử dụng chia thành ba nhóm. Mỗi ca sử dụng được đặc tả bằng biểu đồ riêng, luồng cơ bản và các luồng thay thế chính. Các yêu cầu phi chức năng tập trung vào bảo mật dữ liệu, độ tin cậy, tính nhất quán khi xét nắm vững và tính dễ dùng.
 
 Chương tiếp theo trình bày thiết kế hệ thống dựa trên các yêu cầu này.
