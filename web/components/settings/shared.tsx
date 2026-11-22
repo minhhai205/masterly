@@ -1,5 +1,6 @@
 "use client";
 
+import type { CatalogProfile } from "@/lib/model-catalog-types";
 
 // Tailwind 3 silently drops `<color>-[var(--token)]/NN`: our tokens are hex
 // literals, so it cannot split them into channels and emits no rule at all.
@@ -34,6 +35,29 @@ export const selectOptionClass =
 // pages read as a stack of hairlines. color-mix does compile.
 export const subPanelClass =
   "rounded-xl border border-[color-mix(in_srgb,var(--border)_85%,transparent)] bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]";
+
+export function stringifyExtraHeaders(
+  value: CatalogProfile["extra_headers"],
+): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+export function formatContextWindowSource(
+  source: string | undefined,
+  t: (key: string) => string,
+): string {
+  if (source === "manual") return t("Manual");
+  if (source === "metadata") return t("Provider metadata");
+  if (source === "known_model") return t("Model catalog (models.dev)");
+  if (source === "default") return t("Conservative fallback (not detected)");
+  return t("Unset");
+}
 
 export function SettingRow({
   title,
