@@ -48,6 +48,30 @@ nhận việc giảng giải và đặt câu hỏi.
 ## Trạng thái
 
 Đang phát triển.
+
+## Chạy khi phát triển
+
+Cần Python 3.11 trở lên và Node 22.
+
+```bash
+# Backend (cổng 8000)
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/uvicorn masterly.api.main:app --reload --port 8000
+
+# Web (cổng 3000), ở cửa sổ khác
+cd web && npm install && npm run dev
+```
+
+Lần chạy đầu, backend tạo các tệp cấu hình trong `data/user/settings/`. Khai báo
+tài khoản quản trị viên trong `data/user/settings/auth.json`, rồi khởi động lại
+backend:
+
+```bash
+.venv/bin/python -c "from masterly.services.auth import hash_password; print(hash_password('mật-khẩu'))"
+# chép kết quả vào "password_hash", đặt tên đăng nhập ở "username"
+```
+
+Kiểm thử backend: `.venv/bin/python -m pytest`.
 <!-- 
 ## Giấy phép
 
