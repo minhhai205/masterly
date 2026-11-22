@@ -31,3 +31,9 @@ _settings.mkdir(parents=True)
     )
 )
 os.environ["MASTERLY_HOME"] = str(_HOME)
+
+# Default settings files the app writes on first start (``agents.yaml``), for
+# tests that read them without starting the app.
+from masterly.services.setup import ensure_agents_settings  # noqa: E402
+
+ensure_agents_settings()
