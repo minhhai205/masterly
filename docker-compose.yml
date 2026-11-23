@@ -1,0 +1,22 @@
+# Services for local development. The backend and the web app run on the host.
+name: masterly
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${DB_USER:-masterly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-masterly}
+      POSTGRES_DB: ${DB_NAME:-masterly}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  db-data:
