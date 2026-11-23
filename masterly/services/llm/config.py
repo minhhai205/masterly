@@ -2,8 +2,8 @@
 LLM Configuration
 =================
 
-Configuration management for LLM services.
-Loads from data/user/settings/model_catalog.json.
+Configuration management for LLM services, resolved from the model catalog of
+the signed-in account's group and cached per group.
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from __future__ import annotations
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, replace
 import logging
-import os
-from pathlib import Path
 import re
 from typing import TYPE_CHECKING, TypedDict
 
@@ -21,8 +19,6 @@ from masterly.services.keypool import primary_api_key
 from masterly.services.provider_registry import (
     api_format_for_provider,
     api_format_from_legacy,
-    canonical_provider_name,
-    effective_backend,
     find_by_name,
     normalize_api_format,
     wire_api_for_provider,
@@ -60,51 +56,6 @@ class LLMConfigUpdate(TypedDict, total=False):
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-
-
-def _is_openai_compatible(binding: str | None, api_format: str = "auto") -> bool:
-    canonical = canonical_provider_name(binding) or (binding or "").strip().lower()
-    spec = find_by_name(canonical)
-    if not spec or spec.is_oauth:
-        return False
-    return effective_backend(spec, api_format) in {"openai_compat", "azure_openai"}
-
-
-def _set_openai_env_vars(
-    api_key: str | list[str] | None, base_url: str | None, *, source: str
-) -> None:
-    primary_key = primary_api_key(api_key)
-    if primary_key:
-        os.environ["OPENAI_API_KEY"] = primary_key
-        logger.debug("Set OPENAI_API_KEY env var (%s)", source)
-
-    if base_url:
-        from .utils import sanitize_url
-
-        clean_url = sanitize_url(base_url)
-        os.environ["OPENAI_BASE_URL"] = clean_url
-        logger.debug("Set OPENAI_BASE_URL env var to %s (%s)", clean_url, source)
-
-
-def _setup_openai_env_vars_early() -> None:
-    """
-    Set OPENAI_* environment variables early for OpenAI-compatible SDKs.
-
-    Some SDK helpers read credentials/endpoints from process environment.
-    This is called at module import time so downstream calls have consistent
-    environment regardless of entrypoint.
-    """
-    try:
-        resolved = resolve_llm_runtime_config()
-    except Exception:
-        return
-    if _is_openai_compatible(resolved.binding, resolved.api_format):
-        _set_openai_env_vars(resolved.api_key, resolved.effective_url, source="early init")
-
-
-# Execute early setup at module import time
-_setup_openai_env_vars_early()
 
 
 @dataclass
@@ -157,7 +108,10 @@ class LLMConfig:
         return primary_api_key(self.api_key) or ""
 
 
-_LLM_CONFIG_CACHE: LLMConfig | None = None
+# Resolved config per group ("" outside any group). Each group runs on its own
+# catalog, so one cached config for the whole process would hand one group's
+# model and key to another.
+_LLM_CONFIG_CACHE: dict[str, LLMConfig] = {}
 _SCOPED_LLM_CONFIG: ContextVar[LLMConfig | None] = ContextVar(
     "masterly_scoped_llm_config",
     default=None,
@@ -172,22 +126,6 @@ def set_scoped_llm_config(config: LLMConfig | None) -> Token[LLMConfig | None]:
 def reset_scoped_llm_config(token: Token[LLMConfig | None]) -> None:
     """Reset a scoped LLM config token returned by ``set_scoped_llm_config``."""
     _SCOPED_LLM_CONFIG.reset(token)
-
-
-def initialize_environment() -> None:
-    """
-    Explicitly initialize environment variables for compatibility.
-
-    This should be called during application startup to keep OPENAI_* env vars
-    aligned with current config values.
-    """
-    resolved = resolve_llm_runtime_config()
-    if _is_openai_compatible(resolved.binding, resolved.api_format):
-        _set_openai_env_vars(
-            resolved.api_key,
-            resolved.effective_url,
-            source="initialize_environment",
-        )
 
 
 def _get_llm_config_from_resolver() -> LLMConfig:
@@ -242,17 +180,15 @@ def get_llm_config() -> LLMConfig:
     Raises:
         LLMConfigError: If required configuration is missing
     """
-    global _LLM_CONFIG_CACHE
-
     scoped = _SCOPED_LLM_CONFIG.get()
     if scoped is not None:
         return scoped
 
-    if _LLM_CONFIG_CACHE is not None:
-        return _LLM_CONFIG_CACHE
-
-    _LLM_CONFIG_CACHE = _get_llm_config_from_resolver()
-    return _LLM_CONFIG_CACHE
+    key = catalog_group_key()
+    cached = _LLM_CONFIG_CACHE.get(key)
+    if cached is None:
+        cached = _LLM_CONFIG_CACHE[key] = _get_llm_config_from_resolver()
+    return cached
 
 
 async def get_llm_config_async() -> LLMConfig:
@@ -267,11 +203,19 @@ async def get_llm_config_async() -> LLMConfig:
     return get_llm_config()
 
 
-def clear_llm_config_cache() -> None:
-    """Clear cached LLM configuration."""
-    global _LLM_CONFIG_CACHE
+def catalog_group_key() -> str:
+    """Which group's catalog the current code resolves against; "" for none."""
+    from masterly.multi_user.context import get_current_user
 
-    _LLM_CONFIG_CACHE = None
+    return get_current_user().group_id or ""
+
+
+def clear_llm_config_cache(group_key: str | None = None) -> None:
+    """Forget the resolved config of one group, or of every group."""
+    if group_key is None:
+        _LLM_CONFIG_CACHE.clear()
+    else:
+        _LLM_CONFIG_CACHE.pop(group_key, None)
 
 
 def reload_config() -> LLMConfig:
@@ -333,6 +277,7 @@ __all__ = [
     "LLMConfig",
     "get_llm_config",
     "get_llm_config_async",
+    "catalog_group_key",
     "clear_llm_config_cache",
     "reload_config",
     "uses_max_completion_tokens",

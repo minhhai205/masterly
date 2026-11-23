@@ -298,20 +298,25 @@ class EmbeddingClient:
             return future.result()
 
 
-_client: Optional[EmbeddingClient] = None
+# The last client built per group ("" outside any group).
+_clients: dict[str, EmbeddingClient] = {}
 
 
 def get_embedding_client(config: Optional[EmbeddingConfig] = None) -> EmbeddingClient:
-    global _client
+    from masterly.services.llm.config import catalog_group_key
+
+    key = catalog_group_key()
     resolved_config = config or get_embedding_config()
-    client = _client
+    client = _clients.get(key)
     if client is None or client.config != resolved_config:
-        client = EmbeddingClient(resolved_config)
-        _client = client
+        client = _clients[key] = EmbeddingClient(resolved_config)
     # Each caller retains its own client even if another worker changes the cache.
     return client
 
 
-def reset_embedding_client() -> None:
-    global _client
-    _client = None
+def reset_embedding_client(group_key: str | None = None) -> None:
+    """Forget one group's embedding client, or every group's."""
+    if group_key is None:
+        _clients.clear()
+    else:
+        _clients.pop(group_key, None)

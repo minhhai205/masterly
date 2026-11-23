@@ -1,7 +1,7 @@
 """Models & services: the shared model catalog behind the settings pages.
 
-One catalog serves every account. Only the administrator reads or changes it;
-a learner calling these endpoints gets 403, except ``GET /api/settings`` which
+Each group has its own catalog. Only the group owner reads or changes it; a
+learner calling these endpoints gets 403, except ``GET /api/settings`` which
 answers them with their interface preferences only.
 
 Every edit names one provider, model or default and applies at once. Secrets
@@ -35,7 +35,7 @@ from masterly.services.config import (
     redact_catalog_secrets,
     restore_catalog_secrets,
 )
-from masterly.services.llm.config import clear_llm_config_cache
+from masterly.services.llm.config import catalog_group_key, clear_llm_config_cache
 from masterly.services.settings.interface_settings import get_ui_settings
 
 logger = logging.getLogger(__name__)
@@ -101,28 +101,25 @@ class ProviderProbePayload(BaseModel):
 
 @contextlib.contextmanager
 def _runtime_catalog_write() -> Iterator[None]:
-    """Bracket a write to the model catalog, resetting clients if it landed.
+    """Bracket a write to the group's catalog, resetting its clients if it landed.
 
-    The LLM and embedding clients are process-wide singletons that resolve from
-    this one file. Resetting them only when the file actually changed keeps a
-    settings visit that re-applies the same configuration from dropping an
-    in-flight turn into the provider retry ladder.
+    The group's LLM and embedding clients are built from this catalog. Resetting
+    them only when it actually changed keeps a save that changes nothing from
+    dropping an in-flight turn into the provider retry ladder.
     """
     service = get_model_catalog_service()
     before = service.load()
     yield
     if service.load() == before:
         return
-    logger.warning(
-        "Admin applied catalog; resetting global LLM/embedding clients. "
-        "In-flight user turns may flip backend client mid-call."
-    )
+    group = catalog_group_key()
+    logger.info("Catalog of group %s changed; resetting its LLM/embedding clients", group)
     from masterly.services.embedding.client import reset_embedding_client
     from masterly.services.llm.client import reset_llm_client
 
-    clear_llm_config_cache()
-    reset_llm_client()
-    reset_embedding_client()
+    clear_llm_config_cache(group)
+    reset_llm_client(group)
+    reset_embedding_client(group)
 
 
 def _require_owner() -> None:
