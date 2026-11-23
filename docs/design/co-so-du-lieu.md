@@ -279,15 +279,47 @@ xếp lịch ôn.
 <group_id>/<account_id>/attachments/<file_id>.<ext>
 ```
 
-## 5. Biến môi trường
+## 5. Cấu hình triển khai
+
+Cấu hình cần lúc khởi động đặt bằng biến môi trường. Khi phát triển, các biến nằm
+trong tệp `.env` (không đưa lên Git; repo có `.env.example` liệt kê tên biến). Trên
+AWS, biến bí mật lấy từ Secrets Manager, các biến còn lại đặt trong cấu hình chạy ứng
+dụng. Cột "Bí mật" đánh dấu biến không được để lộ.
+
+Backend:
+
+| Nhóm | Biến | Bí mật | Ý nghĩa |
+|---|---|---|---|
+| Cơ sở dữ liệu | `DB_HOST`, `DB_PORT`, `DB_NAME` | | Máy, cổng và tên cơ sở dữ liệu |
+| | `DB_USER` | | Tài khoản kết nối |
+| | `DB_PASSWORD` | Có | Mật khẩu kết nối |
+| Khóa | `AUTH_SECRET` | Có | Khóa ký phiên đăng nhập |
+| | `ENCRYPTION_KEY` | Có | Khóa mã hóa khóa API và phiên ChatGPT |
+| Lưu tệp | `STORAGE_BACKEND` | | `local` hoặc `s3` |
+| | `STORAGE_LOCAL_DIR` | | Thư mục lưu tệp khi `local` |
+| | `S3_BUCKET`, `AWS_REGION` | | Bucket và vùng khi `s3` |
+| Mạng | `PUBLIC_URL` | | Địa chỉ công khai của trang web |
+| | `CORS_ORIGINS` | | Nguồn được phép gọi API |
+| | `BACKEND_PORT` | | Cổng backend |
+| Đăng nhập | `SESSION_TTL_HOURS` | | Thời hạn phiên đăng nhập |
+| | `COOKIE_SECURE` | | Cookie chỉ gửi qua HTTPS; bật khi chạy thật |
+| Giới hạn | `UPLOAD_MAX_MB` | | Kích thước tối đa mỗi tệp tải lên |
+| Nhật ký | `LOG_LEVEL` | | Mức ghi nhật ký |
+
+Web:
 
 | Biến | Ý nghĩa |
 |---|---|
-| `DATABASE_URL` | Kết nối PostgreSQL |
-| `AUTH_SECRET` | Khóa ký phiên đăng nhập |
-| `ENCRYPTION_KEY` | Khóa mã hóa khóa API và phiên ChatGPT |
-| `STORAGE_BACKEND` | `local` hoặc `s3` |
-| `STORAGE_LOCAL_DIR` / `S3_BUCKET` | Nơi lưu tệp |
+| `MASTERLY_API_BASE_URL` | Địa chỉ backend, để web chuyển tiếp `/api` |
+| `PORT` | Cổng của web |
+
+- Backend tự ghép các biến `DB_*` thành chuỗi kết nối. Trên AWS, Secrets Manager của
+  RDS giữ sẵn các trường này và có thể tự đổi mật khẩu định kỳ.
+- Quyền đọc ghi S3 trên AWS cấp cho máy chạy ứng dụng bằng IAM role, không đặt khóa
+  AWS trong biến môi trường.
+- Các tham số khác của ứng dụng (lọc nguồn khi tìm web, giới hạn số chữ của tệp đính
+  kèm…) là giá trị mặc định trong mã, không phải biến môi trường. Các tệp cấu hình
+  `system.json`, `auth.json` không còn dùng.
 
 ## 6. Tạo bảng theo chức năng
 
