@@ -156,50 +156,6 @@ export function addDiscoveredModels(
   });
 }
 
-/** Apply the server's normalized/masked response only where the user has not
- * edited further while saving. Unrelated drafts and new selections survive. */
-export function reconcileProviderSave(
-  current: Catalog,
-  submitted: Catalog,
-  live: Catalog,
-  service: ServiceName,
-  profileId: string,
-): Catalog {
-  const next = structuredClone(current);
-  const profile = submitted.services[service].profiles.find(
-    (item) => item.id === profileId,
-  );
-  const saved = live.services[service].profiles.find(
-    (item) => item.id === profileId,
-  );
-  const index = next.services[service].profiles.findIndex(
-    (item) => item.id === profileId,
-  );
-  if (
-    saved &&
-    index >= 0 &&
-    JSON.stringify(next.services[service].profiles[index]) ===
-      JSON.stringify(profile)
-  )
-    next.services[service].profiles[index] = structuredClone(saved);
-  const connection = submitted.connections?.find(
-    (item) => item.id === profile?.connection_id,
-  );
-  const savedConnection = live.connections?.find(
-    (item) => item.id === connection?.id,
-  );
-  const connectionIndex =
-    next.connections?.findIndex((item) => item.id === connection?.id) ?? -1;
-  if (
-    savedConnection &&
-    connectionIndex >= 0 &&
-    JSON.stringify(next.connections![connectionIndex]) ===
-      JSON.stringify(connection)
-  )
-    next.connections![connectionIndex] = structuredClone(savedConnection);
-  return next;
-}
-
 /** Detaching retains the credentials currently visible in the editor, including
  * unsaved connection edits that have not yet been mirrored into the profile. */
 export function detachProfileConnection(

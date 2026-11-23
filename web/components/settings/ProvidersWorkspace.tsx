@@ -1,7 +1,6 @@
 "use client";
 
 import Tooltip from "@/shared/ui/Tooltip";
-import { stageRegistryAction, type RegistryEdit } from "@/lib/provider-registry";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Cable, Plus, Trash2 } from "lucide-react";
@@ -17,6 +16,7 @@ import {
   providerRegistry,
   providerUsage,
   providerProbeInput,
+  revertProvider,
   updateProvider,
   REGISTRY_SERVICES,
 } from "@/lib/provider-registry";
@@ -46,12 +46,9 @@ export function ProvidersWorkspace() {
     connectionTargets,
     catalogEditable,
     mutateCatalog,
+    saveRegistry,
     applying,
   } = useSettings();
-  const stageRegistry = async (edit: RegistryEdit) => {
-    mutateCatalog((next) => stageRegistryAction(next, edit));
-    return true;
-  };
   const sources = providerRegistry(draft);
   const editorRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -137,8 +134,35 @@ export function ProvidersWorkspace() {
         {t("Only the group owner can manage providers.")}
       </p>
     );
-  const savedIds = new Set(providerRegistry(catalog).map((p) => p.id));
+  const savedSources = providerRegistry(catalog);
+  const savedIds = new Set(savedSources.map((p) => p.id));
   const saved = Boolean(source && savedIds.has(source.id));
+  const changed = Boolean(
+    source &&
+      (!saved ||
+        JSON.stringify(savedSources.find((p) => p.id === source.id)?.source) !==
+          JSON.stringify(source.source)),
+  );
+  const save = () => {
+    if (source)
+      void saveRegistry({
+        kind: "provider",
+        ref: source.ref,
+        fields: { ...source.source },
+      });
+  };
+  const revert = () => {
+    if (!source) return;
+    mutateCatalog((next) => revertProvider(next, catalog, source.ref));
+    if (!saved) setSelected(null);
+  };
+  const remove = async () => {
+    if (!source) return;
+    if (saved && !(await saveRegistry({ kind: "provider", ref: source.ref, delete: true })))
+      return;
+    if (!saved) mutateCatalog((next) => revertProvider(next, catalog, source.ref));
+    setSelected(null);
+  };
   const filtered = sources.filter((p) =>
     `${p.name} ${p.provider}`.toLowerCase().includes(query.toLowerCase()),
   );
@@ -213,7 +237,12 @@ export function ProvidersWorkspace() {
                     {t("{{count}} configured models", {
                       count: providerUsage(draft, p),
                     })}
-                    {!savedIds.has(p.id) && ` · ${t("Not saved")}`}
+                    {!savedIds.has(p.id)
+                      ? ` · ${t("Not saved")}`
+                      : JSON.stringify(p.source) !==
+                          JSON.stringify(
+                            savedSources.find((item) => item.id === p.id)?.source,
+                          ) && ` · ${t("Unsaved changes")}`}
                   </span>
                 </button>
               );
@@ -254,7 +283,9 @@ export function ProvidersWorkspace() {
                   />
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                     {option?.label || source.provider}
-                    {!saved && ` · ${t("Not saved")}`}
+                    {!saved
+                      ? ` · ${t("Not saved")}`
+                      : changed && ` · ${t("Unsaved changes")}`}
                   </p>
                 </header>
                 <div className="space-y-5 p-5">
@@ -370,8 +401,23 @@ export function ProvidersWorkspace() {
                     </>
                   )}
                   <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
-
-                      <Tooltip label={
+                    <button
+                      type="button"
+                      disabled={applying || !changed}
+                      onClick={save}
+                      className={registryPrimary}
+                    >
+                      {t("Save")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={applying || !changed}
+                      onClick={revert}
+                      className={registryButton}
+                    >
+                      {t(saved ? "Discard changes" : "Cancel")}
+                    </button>
+                    <Tooltip label={
                         providerUsage(draft, source)
                           ? t("Change or remove the models using this provider first.")
                           : t("Remove provider")
@@ -382,10 +428,7 @@ export function ProvidersWorkspace() {
                           applying || providerUsage(draft, source) > 0 || managed
                         }
                         aria-label={t("Remove provider")}
-                        onClick={async () => {
-                          await stageRegistry({ kind: "provider", ref: source.ref, delete: true });
-                          setSelected(null);
-                        }}
+                        onClick={() => void remove()}
                         className={`${registryDanger} ml-auto`}
                       >
                         <Trash2 size={13} />
