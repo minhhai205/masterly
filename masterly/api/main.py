@@ -45,9 +45,6 @@ def _cors_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
-    from masterly.services.auth import ensure_declared_admin
-
-    ensure_declared_admin()
     get_path_service().get_workspace_dir().mkdir(parents=True, exist_ok=True)
     app.state.ready = True
     yield
