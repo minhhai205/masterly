@@ -32,7 +32,6 @@ erDiagram
     groups ||--|{ accounts : "gồm"
     accounts ||--|{ workspaces : "sở hữu"
     accounts ||--o{ memories : "có"
-    accounts ||--o{ llm_calls : "gây ra"
     workspaces ||--o{ sessions : "chứa"
     workspaces ||--o{ learning_paths : "chứa"
     workspaces ||--o{ knowledge_bases : "chứa"
@@ -46,10 +45,10 @@ erDiagram
     documents ||--o{ chunks : "cắt thành"
 ```
 
-15 bảng, chia ba vùng:
+14 bảng, chia ba vùng:
 
 - Nhóm và tài khoản: `groups`, `accounts`.
-- Theo tài khoản: `workspaces`, `memories`, `llm_calls`.
+- Theo tài khoản: `workspaces`, `memories`.
 - Theo không gian học: trò chuyện (`sessions`, `messages`, `turns`, `turn_events`),
   lộ trình (`learning_paths`, `assessments`), tài liệu (`knowledge_bases`,
   `documents`, `chunks`), ghi chép (`notes`).
@@ -108,17 +107,6 @@ erDiagram
 | slot | text, PK | Phần bộ nhớ: `profile`, `preferences`, `recent`, tóm tắt theo trò chuyện, theo lộ trình |
 | content | text | Markdown; người học xem, sửa, xóa được |
 | updated_at | timestamptz | |
-
-`llm_calls`: chi phí mỗi lần gọi mô hình.
-
-| Cột | Kiểu | Ý nghĩa |
-|---|---|---|
-| id | uuid, PK | |
-| account_id | uuid, FK `accounts` | |
-| turn_id | uuid | Lượt đã gọi |
-| model | text | |
-| usage | jsonb | Số token, chi phí ước tính |
-| created_at | timestamptz | |
 
 ### 3.3. Trò chuyện
 
@@ -278,7 +266,7 @@ xếp lịch ôn.
 | Chức năng | Bảng |
 |---|---|
 | F01 Đăng ký và đăng nhập | `groups`, `accounts`, `workspaces` |
-| F03 Cấu hình dịch vụ bên ngoài | Dùng các cột cấu hình của `groups`; `llm_calls` |
+| F03 Cấu hình dịch vụ bên ngoài | Dùng các cột cấu hình của `groups` |
 | F04 Trò chuyện với AI | `sessions`, `messages`, `turns`, `turn_events` |
 | F08, F09, F10, F11 Lộ trình, học, ôn, tiến độ | `learning_paths`, `assessments` |
 | F07 Tải lên và sắp xếp tài liệu học | `knowledge_bases`, `documents`, `chunks` |
