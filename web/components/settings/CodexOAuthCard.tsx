@@ -32,8 +32,7 @@ export function CodexOAuthCard() {
   const { t } = useTranslation();
   const { catalogEditable, reloadSettings, hasUnsavedChanges, setToast } =
     useSettings();
-  // A model's reasoning effort saves at once, like signing in or out; it is
-  // not part of the model-settings draft.
+  // A model's reasoning effort saves at once, like signing in or out.
   const [efforts, setEfforts] = useState<Record<string, string | null>>({});
   const [status, setStatus] = useState<CodexOAuthStatus | null>(null);
   const [pending, setPending] = useState(false);
@@ -132,7 +131,7 @@ export function CodexOAuthCard() {
     };
   }, [loadStatus, pending, status, pollTick]);
 
-  // Reloading replaces the whole catalog draft, so this must never run behind
+  // Reloading replaces everything on screen, so this must never run behind
   // the operator's back while they have unsaved edits open on another provider.
   const syncCatalog = useCallback(async () => {
     if (hasUnsavedChanges) {

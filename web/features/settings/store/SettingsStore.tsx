@@ -17,7 +17,6 @@ import { setModelReasoningEffort } from "@/lib/reasoning-effort";
 import {
   detachProfileConnection,
   modelTestKey,
-  reconcileProviderSave,
   modelTestFingerprint,
   type ModelTestState,
 } from "@/lib/model-settings";
@@ -89,22 +88,6 @@ export type DiagnosticsResult = {
 
 export type ServiceReadiness =
   "not_configured" | "untested" | "passed" | "failed";
-
-/**
- * Where the current settings state lives.
- *   clean   — identical to what is applied
- *   unsaved — edited, not written anywhere yet
- *   saved   — written to the draft store, not applied
- */
-export type DraftState = "clean" | "unsaved" | "saved";
-
-/** What the server holds as unapplied. `catalog` comes back redacted. */
-export type StoredDraft = {
-  version: number;
-  updated_at: string;
-  catalog: Catalog | null;
-  extensions: Record<string, unknown>;
-};
 
 type SettingsPayload = {
   catalog?: Catalog;
@@ -212,17 +195,6 @@ export function serviceReadiness(
   return "untested";
 }
 
-export function servicePendingApply(
-  catalog: Catalog,
-  draft: Catalog,
-  service: ServiceName,
-): boolean {
-  return (
-    JSON.stringify(catalog.services[service]) !==
-    JSON.stringify(draft.services[service])
-  );
-}
-
 function nextModelName(models: CatalogModel[]): string {
   const prefix = "Model ";
   const used = new Set(models.map((model) => model.name.trim()));
@@ -251,7 +223,9 @@ function readStoredDiagnosticsResults(): Partial<
 
 export type SettingsContextValue = {
   // State
+  /** What is saved and running. */
   catalog: Catalog;
+  /** The editable copy on screen; an item differs from `catalog` until it is saved. */
   draft: Catalog;
   providers: Record<ServiceName, ProviderOption[]>;
   /** True for the administrator; false for a learner, who never sees the catalog. */
@@ -341,21 +315,9 @@ export type SettingsContextValue = {
   llmContextDetection: LlmContextWindowDetection | null;
   applyDetectedContextWindow: () => void;
 
-  // Save / apply
-  saving: boolean;
+  // Saving: each edit names one item and is live as soon as it returns.
   applying: boolean;
-  saveDraft: () => Promise<boolean>;
-  applyCatalog: () => Promise<void>;
-  /** Promote one model service without applying unrelated Settings drafts. */
-  applyService: (service: ServiceName) => Promise<boolean>;
   saveRegistry: (edit: RegistryEdit) => Promise<boolean>;
-  saveProvider: (service: ServiceName, profileId: string) => Promise<boolean>;
-  discardDraft: () => Promise<void>;
-  /** A draft parked on the server, waiting to be applied. */
-  storedDraft: StoredDraft | null;
-  draftState: DraftState;
-  /** Bumped when a draft is discarded so pages re-read from the server. */
-  draftRevision: number;
 
   // Diagnostics
   modelTests: Record<string, ModelTestState>;
@@ -402,12 +364,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ConnectionTarget[]
   >([]);
   const [taskKinds, setTaskKinds] = useState<TaskKindInfo[]>([]);
-  const [storedDraft, setStoredDraft] = useState<StoredDraft | null>(null);
-  // Signature of the envelope as last written to the draft store.
-  const [savedSignature, setSavedSignature] = useState<string | null>(null);
-  const [draftRevision, setDraftRevision] = useState(0);
   const [toast, setToast] = useState("");
-  const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState(false);
   // Empty string is the "no diagnostics yet" sentinel; the editor renders
   // a localized placeholder when logs is falsy. Don't seed an English
@@ -452,27 +409,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (payload.connection_targets)
         setConnectionTargets(payload.connection_targets);
       if (payload.task_kinds) setTaskKinds(payload.task_kinds);
-
-      // A draft parked in an earlier session takes over the editable copy —
-      // otherwise "Save Draft" would look like it had done nothing at all.
-      try {
-        const draftResponse = await apiFetch(apiUrl("/api/settings/draft"));
-        if (draftResponse.ok) {
-          const stored = (await draftResponse.json()) as {
-            draft: StoredDraft | null;
-          };
-          if (stored.draft) {
-            setStoredDraft(stored.draft);
-            const parked = stored.draft.catalog ?? payload.catalog;
-            setDraft(cloneCatalog(parked));
-            setSavedSignature(JSON.stringify(parked));
-            setDraftRevision((value) => value + 1);
-          }
-        }
-      } catch {
-        // No draft is the normal case and a failed read must not block the
-        // page; the live settings above are already in hand.
-      }
     } catch (err) {
       console.error("Failed to load settings:", err);
       setSettingsError(err instanceof Error ? err.message : String(err));
@@ -673,7 +609,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         next.connections = [...(next.connections ?? []), { ...connection }];
       });
       // Returned whole because the caller links services in the same click,
-      // before the draft carrying it has been committed.
+      // before the edit carrying it has been saved.
       return connection;
     },
     [mutateCatalog],
@@ -761,7 +697,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             profileId: `${request.service}-profile-${stamp}${index}`,
             modelId: `${request.service}-model-${stamp}${index}`,
             model: request.model || spec.default_model || "",
-            // Mirrored from the connection on save; seeded here so the draft
+            // Mirrored from the connection on save; seeded here so the screen
             // shows the same values the server will store.
             baseUrl: base
               ? request.service === "embedding"
@@ -1000,103 +936,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         delete model.context_window_detected_at;
       }
     });
-    setToast(t("Detected context window written to draft"));
+    setToast(t("Detected context window filled in. Save the model to keep it."));
   }, [llmContextDetection, mutateCatalog, t]);
 
-  // ── Save / Apply ────────────────────────────────────────────────────────
-  /** The envelope the draft endpoint stores. Only the model catalog is drafted. */
-  const draftEnvelope = useCallback(
-    () => ({ catalog: draft, extensions: {} }),
-    [draft],
-  );
-
-  /**
-   * Save Draft — write everything unsaved to the draft store and stop there.
-   *
-   * Nothing here reaches the files the runtime resolves against, which is the
-   * entire difference from Apply. It covers the pages that keep state outside
-   * the catalog too; previously this button only ever wrote the catalog and
-   * reported success for edits it had not touched.
-   */
-  const saveDraft = useCallback(async () => {
-    setSaving(true);
-    const signature = envelopeSignatureRef.current;
-    try {
-      const response = await apiFetch(apiUrl("/api/settings/draft"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draftEnvelope()),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = (await response.json()) as {
-        draft: StoredDraft | null;
-      };
-      setStoredDraft(payload.draft ?? null);
-      setSavedSignature(signature);
-      setToast(t("Draft saved — not applied yet"));
-      return true;
-    } catch (err) {
-      setToast(
-        t("Could not save the draft: {{message}}", {
-          message: err instanceof Error ? err.message : String(err),
-        }),
-      );
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }, [draftEnvelope, t]);
-
-  /** Apply one model-service editor without promoting unrelated settings. */
-  const applyService = useCallback(
-    async (service: ServiceName): Promise<boolean> => {
-      setApplying(true);
-      try {
-        const response = await apiFetch(apiUrl("/api/settings/apply/service"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service,
-            config: draft.services[service],
-          }),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = (await response.json()) as {
-          catalog: Catalog;
-          draft: StoredDraft | null;
-        };
-        const appliedService = cloneCatalog(payload.catalog).services[service];
-        setCatalog(payload.catalog);
-        setDraft((current) => {
-          const next = cloneCatalog(current);
-          if (
-            JSON.stringify(current.services[service]) ===
-            JSON.stringify(draft.services[service])
-          )
-            next.services[service] = appliedService;
-          return next;
-        });
-        setStoredDraft(payload.draft ?? null);
-        // The remaining in-memory edits may or may not match an older stored
-        // draft. Mark them unsaved rather than claiming more durability than
-        // this service-scoped action provided.
-        setSavedSignature(null);
-        setToast(t("Applied"));
-        return true;
-      } catch (err) {
-        setToast(
-          t("Could not apply: {{message}}", {
-            message: err instanceof Error ? err.message : String(err),
-          }),
-        );
-        return false;
-      } finally {
-        setApplying(false);
-      }
-    },
-    [draft.services, t],
-  );
-
+  // ── Save ────────────────────────────────────────────────────────────────
   const saveRegistry = useCallback(
     async (edit: RegistryEdit): Promise<boolean> => {
       setApplying(true);
@@ -1150,13 +993,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           }
           return next;
         });
-        setStoredDraft(payload.draft ?? null);
-        setSavedSignature(null);
-        setToast(t("Applied"));
+        setToast(t("Saved"));
         return true;
       } catch (error) {
         setToast(
-          t("Could not apply: {{message}}", {
+          t("Could not save: {{message}}", {
             message: error instanceof Error ? error.message : String(error),
           }),
         );
@@ -1167,180 +1008,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     },
     [draft, t],
   );
-
-  const saveProvider = useCallback(
-    async (service: ServiceName, profileId: string): Promise<boolean> => {
-      const profile = draft.services[service].profiles.find(
-        (item) => item.id === profileId,
-      );
-      if (!profile) return false;
-      const connection = draft.connections?.find(
-        (item) => item.id === profile.connection_id,
-      );
-      const activate =
-        draft.services[service].active_profile_id === profileId &&
-        (service !== "task" ||
-          !["inherit", "reference"].includes(
-            draft.services.task.mode ?? "profiles",
-          ));
-      setApplying(true);
-      try {
-        const response = await apiFetch(
-          apiUrl("/api/settings/apply/provider"),
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              service,
-              profile,
-              connection,
-              activate,
-              active_model_id: draft.services[service].active_model_id,
-            }),
-          },
-        );
-        const payload = await response.json();
-        if (!response.ok)
-          throw new Error(
-            typeof payload.detail === "string"
-              ? payload.detail
-              : `HTTP ${response.status}`,
-          );
-        const live = payload.catalog as Catalog;
-        setCatalog(live);
-        setDraft((current) =>
-          reconcileProviderSave(current, draft, live, service, profileId),
-        );
-        // Saving masks credentials and normalizes fields. Keep tests valid for
-        // that exact submission; subsequent user edits still invalidate them.
-        const normalized = reconcileProviderSave(
-          draft,
-          draft,
-          live,
-          service,
-          profileId,
-        );
-        setModelTests((current) => {
-          const next = { ...current };
-          const modelIds =
-            service === "search"
-              ? [undefined]
-              : profile.models.map((model) => model.id);
-          for (const modelId of modelIds) {
-            const key = modelTestKey(service, profileId, modelId);
-            const result = next[key];
-            if (
-              result?.fingerprint ===
-              modelTestFingerprint(draft, service, profileId, modelId)
-            )
-              next[key] = {
-                ...result,
-                fingerprint: modelTestFingerprint(
-                  normalized,
-                  service,
-                  profileId,
-                  modelId,
-                ),
-              };
-          }
-          return next;
-        });
-        setStoredDraft(payload.draft ?? null);
-        setSavedSignature(null);
-        setToast(t("Provider saved"));
-        return true;
-      } catch (error) {
-        setToast(
-          t("Could not apply: {{message}}", {
-            message: error instanceof Error ? error.message : String(error),
-          }),
-        );
-        return false;
-      } finally {
-        setApplying(false);
-      }
-    },
-    [draft, t],
-  );
-
-  /** Apply — move everything into the live files and clear the draft. */
-  const applyCatalog = useCallback(async () => {
-    setApplying(true);
-    try {
-      for (const [service, bucket] of Object.entries(draft.services)) {
-        for (const profile of bucket.profiles) {
-          for (const model of profile.models) {
-            const original = catalog.services[service as ServiceName].profiles
-              .find((item) => item.id === profile.id)
-              ?.models.find((item) => item.id === model.id);
-            if (
-              JSON.stringify(original) !== JSON.stringify(model) &&
-              !model.model.trim()
-            ) {
-              throw new Error(t("Enter a model ID before applying changes."));
-            }
-          }
-        }
-      }
-
-      // Park the current state server-side first so Apply promotes exactly
-      // what is on screen, and so credentials typed into a draft never have
-      // to round-trip through the browser as placeholders.
-      const draftResponse = await apiFetch(apiUrl("/api/settings/draft"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draftEnvelope()),
-      });
-      if (!draftResponse.ok) throw new Error(`HTTP ${draftResponse.status}`);
-
-      const response = await apiFetch(apiUrl("/api/settings/apply"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      if (!payload.catalog) throw new Error("Missing catalog in apply response");
-      setCatalog(payload.catalog);
-      setDraft(cloneCatalog(payload.catalog));
-      setStoredDraft(null);
-      setSavedSignature(null);
-      setDraftRevision((value) => value + 1);
-      setToast(t("Applied"));
-    } catch (err) {
-      setToast(
-        t("Could not apply: {{message}}", {
-          message: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    } finally {
-      setApplying(false);
-    }
-  }, [catalog, draft, draftEnvelope, t]);
-
-  /** Throw the draft away and go back to what is actually live. */
-  const discardDraft = useCallback(async () => {
-    setApplying(true);
-    try {
-      const response = await apiFetch(apiUrl("/api/settings/draft"), {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setStoredDraft(null);
-      setSavedSignature(null);
-      setDraft(cloneCatalog(catalog));
-      setToast(t("Draft discarded"));
-      // Pages holding their own copy of a discarded payload have to re-read.
-      setDraftRevision((value) => value + 1);
-    } catch (err) {
-      setToast(
-        t("Could not discard the draft: {{message}}", {
-          message: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    } finally {
-      setApplying(false);
-    }
-  }, [catalog, t]);
 
   // ── Diagnostics ─────────────────────────────────────────────────────────
   // Reset capability snapshot when switching embedding profile/model so a
@@ -1523,43 +1190,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Derived ─────────────────────────────────────────────────────────────
-  // What the current screen state would be persisted as. Compared against the
-  // last thing actually written so the toolbar can tell "not saved anywhere"
-  // apart from "saved as a draft, not applied".
-  const envelopeSignature = useMemo(
-    () => (catalogEditable ? JSON.stringify(draft) : "null"),
-    [catalogEditable, draft],
-  );
-
-  const differsFromLive = useMemo(
+  // Anything on screen that is not what is saved: an item edited but not saved.
+  const hasUnsavedChanges = useMemo(
     () =>
       catalogEditable === true &&
       JSON.stringify(catalog) !== JSON.stringify(draft),
     [catalog, catalogEditable, draft],
   );
 
-  const envelopeSignatureRef = useRef(envelopeSignature);
-  useEffect(() => {
-    envelopeSignatureRef.current = envelopeSignature;
-  }, [envelopeSignature]);
-
-  const changedStoredDraft =
-    storedDraft !== null &&
-    savedSignature !== null &&
-    envelopeSignature !== savedSignature;
-  const draftState: DraftState =
-    !differsFromLive && !changedStoredDraft
-      ? "clean"
-      : envelopeSignature === savedSignature
-        ? "saved"
-        : "unsaved";
-
-  const hasUnsavedChanges = draftState === "unsaved";
-
   // Moving between settings pages keeps unsaved edits (they live on the
   // provider), but closing or reloading the tab cannot — that is the moment
-  // the work would disappear, so warn there. Only for edits with nowhere to
-  // fall back to: once saved as a draft the server already has them.
+  // the work would disappear, so warn there.
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -1605,17 +1246,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       linkConnectionToServices,
       llmContextDetection,
       applyDetectedContextWindow,
-      saving,
       applying,
-      saveDraft,
-      applyCatalog,
-      saveProvider,
       saveRegistry,
-      applyService,
-      discardDraft,
-      storedDraft,
-      draftState,
-      draftRevision,
       logs,
       testRunning,
       modelTests,
@@ -1655,17 +1287,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       linkConnectionToServices,
       llmContextDetection,
       applyDetectedContextWindow,
-      saving,
       applying,
-      saveDraft,
-      applyCatalog,
-      saveProvider,
       saveRegistry,
-      applyService,
-      discardDraft,
-      storedDraft,
-      draftState,
-      draftRevision,
       logs,
       testRunning,
       modelTests,
