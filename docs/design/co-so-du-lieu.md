@@ -323,13 +323,16 @@ Web:
 
 ## 6. Tạo bảng theo chức năng
 
-| Chức năng | Bảng |
+Đây là thứ tự dự kiến. Mỗi chức năng tạo hoặc đổi bảng của mình bằng một migration;
+khi một chức năng cần đổi bảng, bản thiết kế này được sửa trong cùng PR.
+
+| Chức năng | Thay đổi |
 |---|---|
-| F01 Đăng ký và đăng nhập | `groups`, `accounts`, `workspaces` |
-| F03 Cấu hình dịch vụ bên ngoài | Dùng các cột cấu hình của `groups` |
-| F04 Trò chuyện với AI | `sessions`, `messages`, `turns`, `turn_events` |
-| F08, F09, F10, F11 Lộ trình, học, ôn, tiến độ | `learning_paths`, `assessments` |
-| F07 Tải lên và sắp xếp tài liệu học | `knowledge_bases`, `documents`, `chunks` |
-| F06 Điều chỉnh bộ nhớ người học | `memories` |
-| F14 Ghi chép trong lúc học | `notes` |
-| F02, F05 | Không thêm bảng |
+| F01 Đăng ký và đăng nhập | Tạo `groups` (`id`, `created_at`), `accounts`, `workspaces` |
+| F03 Cấu hình dịch vụ bên ngoài | Thêm vào `groups` các cột `model_catalog`, `catalog_revision`, `codex_session` |
+| F04 Trò chuyện với AI | Tạo `sessions` (chưa có `path_id`), `messages`, `turns`, `turn_events` |
+| F08, F09, F10, F11 Lộ trình, học, ôn, tiến độ | Tạo `learning_paths`, `assessments`; thêm cột `path_id` vào `sessions`, khóa ngoại tới `learning_paths` |
+| F07 Tải lên và sắp xếp tài liệu học | Tạo `knowledge_bases`, `documents`, `chunks` |
+| F06 Điều chỉnh bộ nhớ người học | Tạo `memories` |
+| F14 Ghi chép trong lúc học | Tạo `notes` |
+| F02, F05 | Không đổi bảng |
