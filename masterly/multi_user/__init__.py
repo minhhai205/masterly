@@ -1,23 +1,10 @@
-"""Optional multi-user support for Masterly.
+"""The signed-in account and where its files live.
 
-The package is deliberately isolated from the legacy single-user services.
-Existing code enters it through thin adapters only when auth.json enables auth.
-
-Backend support matrix
-----------------------
-
-The default JSON/SQLite backend (``integrations.pocketbase_url`` blank) is the supported
-multi-user path: per-user workspaces under ``data/users/<uid>/``, accounts and
-grants under ``data/system/``, per-user SQLite session DBs, and JWT-based auth.
-
-PocketBase mode (``integrations.pocketbase_url`` set) is **single-user only** at the
-moment: the PocketBase ``users`` collection has no ``role`` field by default
-(every login resolves to ``role="user"``, so no admin can be created), and
-the ``sessions`` / ``messages`` / ``turns`` collections are not filtered by
-``user_id`` in the queries. Treat PocketBase deployments as single-user until
-the schema and queries are updated.
+Accounts are stored in the database (``masterly.services.accounts``). Each
+request installs the account as the current user, and every per-account path
+resolves from it.
 """
 
-from .models import CurrentUser, UserRecord, UserScope
+from .models import CurrentUser, UserScope
 
-__all__ = ["CurrentUser", "UserRecord", "UserScope"]
+__all__ = ["CurrentUser", "UserScope"]

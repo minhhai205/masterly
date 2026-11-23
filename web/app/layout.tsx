@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import "./globals.css";
 import ThemeScript from "@/components/ThemeScript";
+import SettingsReturnTracker from "@/components/settings/SettingsReturnTracker";
 import { AppShellProvider } from "@/context/AppShellContext";
 import { I18nClientBridge } from "@/i18n/I18nClientBridge";
 
@@ -44,7 +45,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AppShellProvider>
-          <I18nClientBridge>{children}</I18nClientBridge>
+          <I18nClientBridge>
+            <SettingsReturnTracker />
+            {children}
+          </I18nClientBridge>
         </AppShellProvider>
       </body>
     </html>

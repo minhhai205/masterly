@@ -1,57 +1,13 @@
-"""Small data models for Masterly's optional multi-user layer."""
+"""Data models of the signed-in account and its data scope."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-Role = Literal["admin", "teacher", "student", "user"]
-AccountPreset = Literal["standard", "learner", "custom"]
+Role = Literal["owner", "learner"]
 ScopeKind = Literal["admin", "user"]
-
-#: The single source of truth for valid role values. Every role-bearing
-#: store/validator must accept exactly this set; authorization itself stays
-#: least-privilege — only "admin" elevates.
-VALID_ROLES: frozenset[str] = frozenset({"admin", "teacher", "student", "user"})
-
-
-def normalize_role(value: str, default: str = "user") -> str:
-    """Return ``value`` when it is a legal role, else ``default``.
-
-    Least-privilege degrade: an unknown or corrupted role never keeps or
-    gains privileges — it falls back to the given default (usually "user").
-    """
-    return value if value in VALID_ROLES else default
-
-
-@dataclass(frozen=True, slots=True)
-class UserRecord:
-    id: str
-    username: str
-    role: Role = "user"
-    created_at: str = ""
-    disabled: bool = False
-    # Avatar marker: "" (deterministic fallback), "icon:<name>:<color>" for a
-    # picked icon, or "img:<version>" when the user uploaded an image (the
-    # version is bumped on every upload so clients can cache-bust).
-    avatar: str = ""
-
-    # Account presets describe how a normal ``user`` is configured. They are
-    # deliberately not a third identity role: admins remain admins and every
-    # preset remains an ordinary account.
-    preset: AccountPreset = "standard"
-
-    def public_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "username": self.username,
-            "role": self.role,
-            "created_at": self.created_at,
-            "disabled": self.disabled,
-            "avatar": self.avatar,
-            "preset": self.preset,
-        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,38 +23,22 @@ class UserScope:
 
 @dataclass(frozen=True, slots=True)
 class CurrentUser:
+    """The signed-in account, loaded from the database once per request."""
+
     id: str
-    username: str
+    email: str
+    display_name: str
     role: Role
+    group_id: str
     scope: UserScope
+    avatar: str = ""
+    theme: str = "light"
+    language: str = "vi"
+    created_at: str = ""
 
     @property
-    def is_admin(self) -> bool:
-        return self.role == "admin"
-
-    def public_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "username": self.username,
-            "role": self.role,
-            "is_admin": self.is_admin,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class KnowledgeResource:
-    id: str
-    name: str
-    base_dir: Path
-    source: Literal["admin", "user"]
-    assigned: bool = False
-    read_only: bool = False
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def physical_name(self) -> str:
-        return self.name
+    def is_owner(self) -> bool:
+        return self.role == "owner"
 
 
 LOCAL_ADMIN_ID = "local-admin"
-LOCAL_ADMIN_USERNAME = "local"

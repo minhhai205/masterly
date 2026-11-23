@@ -1,0 +1,555 @@
+"""Models & services: the shared model catalog behind the settings pages.
+
+Each group has its own catalog. Only the group owner reads or changes it; a
+learner calling these endpoints gets 403, except ``GET /api/settings`` which
+answers them with their interface preferences only.
+
+Every edit names one provider, model or default and applies at once. Secrets
+leave the server masked and are restored from the stored copy by ID when a
+masked value comes back.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Iterator
+import contextlib
+import json
+import logging
+from typing import Any, Literal
+
+from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from masterly.multi_user.context import get_current_user
+from masterly.services.codex_auth import (
+    CodexAuthError,
+    get_codex_oauth_service,
+    reconcile_codex_catalog_update,
+)
+from masterly.services.config import (
+    CATALOG_SECRET_MASK,
+    get_config_test_runner,
+    get_model_catalog_service,
+    redact_catalog_secrets,
+    restore_catalog_secrets,
+)
+from masterly.services.llm.config import catalog_group_key, clear_llm_config_cache
+from masterly.services.settings.interface_settings import get_ui_settings
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+ServiceName = Literal["llm", "task", "embedding", "search"]
+
+
+class CatalogPayload(BaseModel):
+    catalog: dict[str, Any]
+
+
+class RegistryEditPayload(BaseModel):
+    kind: Literal["provider", "model", "default", "task_choice"]
+    task: dict[str, Any] | None = None
+    ref: dict[str, Any] | None = None
+    fields: dict[str, Any] | None = None
+    service: ServiceName | None = None
+    profile_id: str | None = None
+    model_id: str | None = None
+    model: dict[str, Any] | None = None
+    config: dict[str, Any] | None = None
+    delete: bool = False
+
+
+class CodexOAuthCallbackPayload(BaseModel):
+    callback_url: str
+
+
+class CodexReasoningEffortUpdate(BaseModel):
+    model: str = Field(min_length=1)
+    reasoning_effort: str | None = None
+
+
+class FetchModelsPayload(BaseModel):
+    binding: str = ""
+    base_url: str = ""
+    api_key: str | None = None
+    profile_id: str | None = None
+    # Which LLM-shaped service the profile lives in (for resolving a masked key).
+    service: Literal["llm", "task"] = "llm"
+    # The profile's API format; decides whether /models takes Anthropic headers.
+    api_format: str | None = None
+
+
+class ModelCapabilitiesQuery(BaseModel):
+    binding: str = ""
+    model: str = ""
+
+
+class ProviderProbePayload(BaseModel):
+    binding: str = "openai"
+    base_url: str = ""
+    api_key: str | list[str] | None = None
+    api_format: str = "auto"
+    api_version: str = ""
+    extra_headers: dict[str, str] | str | None = None
+    service: ServiceName = "llm"
+    profile_id: str | None = None
+    connection_id: str | None = None
+
+
+@contextlib.contextmanager
+def _runtime_catalog_write() -> Iterator[None]:
+    """Bracket a write to the group's catalog, resetting its clients if it landed.
+
+    The group's LLM and embedding clients are built from this catalog. Resetting
+    them only when it actually changed keeps a save that changes nothing from
+    dropping an in-flight turn into the provider retry ladder.
+    """
+    service = get_model_catalog_service()
+    before = service.load()
+    yield
+    if service.load() == before:
+        return
+    group = catalog_group_key()
+    logger.info("Catalog of group %s changed; resetting its LLM/embedding clients", group)
+    from masterly.services.embedding.client import reset_embedding_client
+    from masterly.services.llm.client import reset_llm_client
+
+    clear_llm_config_cache(group)
+    reset_llm_client(group)
+    reset_embedding_client(group)
+
+
+def _require_owner() -> None:
+    if not get_current_user().is_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Model configuration is managed by the group owner.",
+        )
+
+
+def _llm_provider_label(name: str, label: str) -> str:
+    if name == "custom":
+        return "Custom (OpenAI API)"
+    if name == "custom_anthropic":
+        return "Custom (Anthropic API)"
+    return label
+
+
+def _provider_choices() -> dict[str, list[dict[str, Any]]]:
+    """Build dropdown options for provider selection, keyed by service type."""
+    from masterly.services.config.provider_runtime import (
+        DEPRECATED_SEARCH_PROVIDERS,
+        EMBEDDING_PROVIDERS,
+        SEARCH_PROVIDERS,
+    )
+    from masterly.services.provider_registry import PROVIDERS
+
+    llm = sorted(
+        [
+            {
+                "value": s.name,
+                "label": _llm_provider_label(s.name, s.label),
+                "base_url": s.default_api_base,
+                "auth_mode": s.auth_mode,
+                "supports_wire_api_selection": s.supports_wire_api_selection,
+                # Which protocols a profile on this vendor may pick, and the
+                # vendor endpoint each one lives at when that differs.
+                "api_formats": list(s.api_formats),
+                "default_api_format": s.default_api_format,
+                "base_urls": {
+                    api_format: s.default_api_base_for(api_format)
+                    for api_format in s.api_formats
+                    if s.default_api_base_for(api_format)
+                },
+                # Legacy entries stay resolvable for stored catalogs but are
+                # not offered for new profiles.
+                "status": "legacy" if s.is_legacy else "supported",
+            }
+            for s in PROVIDERS
+        ],
+        key=lambda p: p["label"].lower(),
+    )
+    embedding = sorted(
+        [
+            {
+                "value": name,
+                "label": spec.label,
+                "base_url": spec.default_api_base,
+                "default_dim": str(spec.default_dim) if spec.default_dim else "",
+            }
+            for name, spec in EMBEDDING_PROVIDERS.items()
+            if name != "custom_openai_sdk"
+        ],
+        key=lambda p: p["label"].lower(),
+    )
+    # No search provider ships a default base_url: only SearXNG takes one, and
+    # it is the operator's own instance.
+    search = [
+        {
+            "value": name,
+            "label": spec.label,
+            "base_url": "",
+            "requires_api_key": spec.requires_api_key,
+            "requires_base_url": spec.requires_base_url,
+            "soft_fallback": spec.soft_fallback,
+            "status": "supported",
+        }
+        for name, spec in SEARCH_PROVIDERS.items()
+    ]
+    # Retired providers ride along marked rather than offered, so a stale
+    # catalog can be told apart from a typo. The dropdown filters them out.
+    search += [
+        {
+            "value": name,
+            "label": name,
+            "base_url": "",
+            "requires_api_key": False,
+            "requires_base_url": False,
+            "soft_fallback": True,
+            "status": "deprecated",
+        }
+        for name in sorted(DEPRECATED_SEARCH_PROVIDERS)
+    ]
+    return {
+        "llm": llm,
+        # Same shape, same vendors: the task service stands in for the LLM.
+        "task": llm,
+        "embedding": embedding,
+        "search": search,
+    }
+
+
+def _match_service_provider(provider: str, table: dict[str, Any]) -> tuple[str, Any] | None:
+    """Find *provider*'s entry in one service's provider table.
+
+    Vendors are not named identically across tables, so an exact key miss falls
+    back to the spec's own keywords.
+    """
+    if provider in table:
+        return provider, table[provider]
+    for name, spec in table.items():
+        if provider in getattr(spec, "keywords", ()):
+            return name, spec
+    return None
+
+
+def _connection_targets() -> list[dict[str, Any]]:
+    """Which services one vendor credential can configure, and with what.
+
+    Answers "if I paste this vendor's key here, what does it get me?" by joining
+    the LLM registry with the embedding table on the vendor.
+    """
+    from masterly.services.config.provider_runtime import EMBEDDING_PROVIDERS
+    from masterly.services.provider_registry import PROVIDERS
+
+    embedding_table = {k: v for k, v in EMBEDDING_PROVIDERS.items() if k != "custom_openai_sdk"}
+    targets: list[dict[str, Any]] = []
+    for spec in PROVIDERS:
+        # OAuth vendors sign in through their own flow; there is no key to share.
+        if spec.is_oauth:
+            continue
+        services: dict[str, dict[str, Any]] = {
+            "llm": {
+                "provider": spec.name,
+                "base_url": spec.default_api_base,
+                "default_model": "",
+            }
+        }
+        match = _match_service_provider(spec.name, embedding_table)
+        if match is not None:
+            name, service_spec = match
+            services["embedding"] = {
+                "provider": name,
+                "base_url": service_spec.default_api_base,
+                "default_model": service_spec.default_model,
+                "default_dim": str(service_spec.default_dim) if service_spec.default_dim else "",
+            }
+        targets.append(
+            {
+                "provider": spec.name,
+                "label": _llm_provider_label(spec.name, spec.label),
+                "default_base_url": spec.default_api_base,
+                "services": services,
+            }
+        )
+    return sorted(targets, key=lambda item: str(item["label"]).lower())
+
+
+@router.get("")
+async def get_settings():
+    if not get_current_user().is_owner:
+        # Learners never see the catalog (provider URLs or keys).
+        return {"ui": get_ui_settings()}
+    from masterly.services.model_selection.tasks import task_kind_payload
+
+    return {
+        "ui": get_ui_settings(),
+        "catalog": redact_catalog_secrets(get_model_catalog_service().load()),
+        "providers": _provider_choices(),
+        "connection_targets": _connection_targets(),
+        # What actually runs on the background task model, from the call sites.
+        "task_kinds": task_kind_payload(),
+    }
+
+
+@router.post("/apply/registry")
+async def apply_registry_edit(payload: RegistryEditPayload):
+    """Apply one provider, model, default or task choice to the live catalog."""
+    _require_owner()
+    from masterly.services.settings.registry_edit import merge_registry_edit
+
+    service = get_model_catalog_service()
+    current = service.load()
+    try:
+        proposed = merge_registry_edit(current, payload.model_dump(exclude_none=True))
+        proposed = reconcile_codex_catalog_update(current, proposed)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    with _runtime_catalog_write():
+        service.apply(proposed)
+    return {"catalog": redact_catalog_secrets(service.load())}
+
+
+@router.post("/test-provider")
+async def test_provider_connection(payload: ProviderProbePayload):
+    """Test the credentials on screen, resolving masked values from the live catalog by ID."""
+    _require_owner()
+    from masterly.services.settings.provider_probe import probe_provider, probe_search_provider
+
+    source = get_model_catalog_service().load()
+    fields = payload.model_dump()
+    if payload.connection_id:
+        fields["id"] = payload.connection_id
+        proposed = {"connections": [fields]}
+        resolved = restore_catalog_secrets(proposed, source)["connections"][0]
+    else:
+        fields["id"] = payload.profile_id
+        proposed = {"services": {payload.service: {"profiles": [fields]}}}
+        resolved = restore_catalog_secrets(proposed, source)["services"][payload.service][
+            "profiles"
+        ][0]
+    from masterly.services.keypool import primary_api_key
+
+    key = primary_api_key(resolved.get("api_key"))
+    headers = resolved.get("extra_headers") or {}
+    if isinstance(headers, str):
+        try:
+            headers = json.loads(headers)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid extra headers JSON.") from exc
+    if not isinstance(headers, dict) or any(not isinstance(v, str) for v in headers.values()):
+        raise HTTPException(status_code=400, detail="Extra headers must contain text values.")
+    if (
+        (payload.api_key == CATALOG_SECRET_MASK and not key)
+        or key == CATALOG_SECRET_MASK
+        or any(v == CATALOG_SECRET_MASK for v in headers.values())
+    ):
+        raise HTTPException(
+            status_code=400, detail="Saved credentials were not found. Enter the key again."
+        )
+    if payload.service == "search":
+        return await probe_search_provider(payload.binding, payload.base_url, key)
+    return await probe_provider(
+        payload.binding, payload.base_url, key, payload.api_format, headers, payload.api_version
+    )
+
+
+@router.post("/fetch-models")
+async def fetch_models_from_provider(payload: FetchModelsPayload):
+    """List the model IDs an OpenAI-compatible provider exposes.
+
+    Thin HTTP surface over ``factory.fetch_models`` so the settings UI can
+    populate a model picker from ``base_url`` + ``api_key`` instead of making
+    the user type model IDs by hand.
+    """
+    _require_owner()
+    from masterly.services.llm.factory import fetch_models as fetch_llm_models
+
+    base_url = (payload.base_url or "").strip()
+    binding = (payload.binding or "").strip().lower() or "openai"
+    if not base_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="base_url is required for this provider.",
+        )
+
+    api_key = payload.api_key
+    api_format = (payload.api_format or "").strip().lower()
+    if payload.profile_id and (api_key == CATALOG_SECRET_MASK or not api_format):
+        service = get_model_catalog_service().load().get("services", {}).get(payload.service, {})
+        profile = next(
+            (item for item in service.get("profiles", []) if item.get("id") == payload.profile_id),
+            None,
+        )
+        if api_key == CATALOG_SECRET_MASK:
+            api_key = profile.get("api_key") if profile else None
+        if not api_format and profile:
+            api_format = str(profile.get("api_format") or "")
+
+    try:
+        model_ids = await fetch_llm_models(binding, base_url, api_key, api_format or "auto")
+    except Exception as exc:  # noqa: BLE001 — surface any provider error as 502
+        logger.exception("Failed to fetch models from %s", base_url)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Provider request failed: {exc}",
+        ) from exc
+
+    return {"models": [{"id": model_id, "name": model_id} for model_id in model_ids]}
+
+
+@router.post("/model-capabilities")
+async def resolve_model_capabilities(payload: ModelCapabilitiesQuery):
+    """What the built-in capability tables assume for one provider/model pair.
+
+    The settings UI shows these as the value "Auto" resolves to next to each
+    per-model override, so a user can see what they are overriding.
+    """
+    _require_owner()
+    from masterly.services.llm.capabilities import effective_capabilities
+
+    binding = (payload.binding or "").strip().lower() or "openai"
+    model = (payload.model or "").strip()
+    return {
+        "binding": binding,
+        "model": model,
+        "defaults": effective_capabilities(binding, model),
+    }
+
+
+@router.post("/tests/{service}/start")
+async def start_service_test(service: ServiceName, payload: CatalogPayload | None = None):
+    _require_owner()
+    catalog = None
+    if payload is not None:
+        catalog_service = get_model_catalog_service()
+        catalog = restore_catalog_secrets(payload.catalog, catalog_service.load())
+        catalog = catalog_service.resolve_connections(catalog)
+    run = get_config_test_runner().start(service, catalog)
+    return {"run_id": run.id}
+
+
+@router.get("/tests/{service}/{run_id}/events")
+async def stream_service_test_events(service: str, run_id: str, request: Request):
+    _require_owner()
+    runner = get_config_test_runner()
+    run = runner.get(run_id)
+
+    async def event_stream():
+        sent = 0
+        while True:
+            if await request.is_disconnected():
+                return
+            events = run.snapshot(sent)
+            if events:
+                for event in events:
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                sent += len(events)
+                if events[-1]["type"] in {"completed", "failed"}:
+                    return
+            else:
+                yield "event: heartbeat\ndata: {}\n\n"
+            await asyncio.sleep(0.35)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/tests/{service}/{run_id}/cancel")
+async def cancel_service_test(service: str, run_id: str):
+    _require_owner()
+    get_config_test_runner().cancel(run_id)
+    return {"message": "Cancelled"}
+
+
+# --- ChatGPT (Codex) sign-in -------------------------------------------------
+# One login per group: the owner signs in, every account of the group runs on it
+# (see ``services.codex_auth.service``).
+
+
+def _codex_http_exception(error: CodexAuthError) -> HTTPException:
+    return HTTPException(
+        status_code=error.http_status,
+        detail={"code": error.code, "message": error.public_message},
+    )
+
+
+@router.post("/providers/openai-codex/oauth/start")
+async def start_openai_codex_oauth() -> dict[str, Any]:
+    _require_owner()
+    try:
+        return await get_codex_oauth_service().start_login()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.get("/providers/openai-codex/oauth/status")
+async def get_openai_codex_oauth_status() -> dict[str, Any]:
+    _require_owner()
+    try:
+        return get_codex_oauth_service().public_status()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/complete")
+async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dict[str, Any]:
+    """Finish a waiting login from a callback address the owner pasted.
+
+    The provider redirects the browser to a loopback listener on the server.
+    When the browser runs on another machine that address fails to load while
+    the sign-in waits; pasting it here completes the same exchange.
+    """
+    _require_owner()
+    try:
+        return await get_codex_oauth_service().complete_login_with_callback_url(
+            payload.callback_url
+        )
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/cancel")
+async def cancel_openai_codex_oauth() -> dict[str, Any]:
+    _require_owner()
+    try:
+        return await get_codex_oauth_service().cancel_login()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/oauth/logout")
+async def logout_openai_codex_oauth() -> dict[str, Any]:
+    _require_owner()
+    try:
+        return await get_codex_oauth_service().logout()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/models/refresh")
+async def refresh_openai_codex_models() -> dict[str, Any]:
+    _require_owner()
+    try:
+        return await get_codex_oauth_service().refresh_models()
+    except CodexAuthError as exc:
+        raise _codex_http_exception(exc) from None
+
+
+@router.post("/providers/openai-codex/models/reasoning-effort")
+async def update_openai_codex_reasoning_effort(
+    payload: CodexReasoningEffortUpdate,
+) -> dict[str, Any]:
+    _require_owner()
+    # The Codex service writes the catalog the runtime resolves against; bracket
+    # it like every other catalog write so the next turn uses the new effort.
+    with _runtime_catalog_write():
+        try:
+            return await get_codex_oauth_service().set_reasoning_effort(
+                payload.model,
+                payload.reasoning_effort,
+            )
+        except CodexAuthError as exc:
+            raise _codex_http_exception(exc) from None

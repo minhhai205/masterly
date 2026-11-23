@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { login, fetchAuthStatus } from "@/lib/auth";
@@ -23,7 +24,7 @@ function LoginPageContent() {
     [next],
   );
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ function LoginPageContent() {
     setError("");
     setLoading(true);
 
-    const result = await login(username, password);
+    const result = await login(email, password);
 
     if (result.ok) {
       router.replace(resolvedNext());
@@ -65,21 +66,21 @@ function LoginPageContent() {
       {/* Card */}
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm px-8 py-8">
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
+          {/* Email */}
           <div>
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="block text-sm font-medium text-[var(--foreground)] mb-1.5"
             >
-              {t("Username")}
+              {t("Email")}
             </label>
             <input
-              id="username"
-              type="text"
-              autoComplete="username"
+              id="email"
+              type="email"
+              autoComplete="email"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-lg border border-[var(--border)]
                          bg-[var(--background)] text-[var(--foreground)]
                          placeholder:text-[var(--muted-foreground)]
@@ -135,7 +136,10 @@ function LoginPageContent() {
       </div>
 
       <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
-        {t("Accounts are issued by the administrator.")}
+        {t("No account yet?")}{" "}
+        <Link href="/register" className="font-medium text-[var(--primary)] hover:underline">
+          {t("Create an account")}
+        </Link>
       </p>
     </div>
   );
