@@ -13,7 +13,7 @@ import logging
 from typing import Any, cast
 
 from .capabilities import supports_vision
-from .config import LLMConfig, get_llm_config
+from .config import LLMConfig, catalog_group_key, get_llm_config
 
 
 def build_model_func_for_config(
@@ -85,43 +85,16 @@ class LLMClient:
     Prefer using factory functions (complete, stream) directly for new code.
     """
 
-    def __init__(self, config: LLMConfig | None = None, *, configure_env: bool = True) -> None:
+    def __init__(self, config: LLMConfig | None = None) -> None:
         """
         Initialize LLM client.
 
         Args:
-            config: LLM configuration. If None, loads from environment.
-            configure_env: Keep true for the legacy singleton facade; isolated
-                override clients should not mutate process-wide SDK settings.
+            config: LLM configuration. If None, resolves the current group's.
         """
 
         self.config = config or get_llm_config()
         self.logger = logging.getLogger(__name__)
-
-        # Keep OPENAI_* env vars aligned for libraries that still read from env.
-        if configure_env:
-            self._setup_openai_env_vars()
-
-    def _setup_openai_env_vars(self) -> None:
-        """
-        Set OpenAI environment variables for compatibility with OpenAI-style SDKs.
-        """
-        import os
-
-        binding = getattr(self.config, "binding", "openai")
-
-        # Only set env vars for OpenAI-compatible bindings
-        if binding in ("openai", "azure_openai", "gemini"):
-            if api_key := self.config.get_api_key():
-                os.environ["OPENAI_API_KEY"] = api_key
-                self.logger.debug("Set OPENAI_API_KEY env var")
-
-            if self.config.base_url:
-                from .utils import sanitize_url as _sanitize
-
-                clean_url = _sanitize(self.config.base_url)
-                os.environ["OPENAI_BASE_URL"] = clean_url
-                self.logger.debug(f"Set OPENAI_BASE_URL env var to {clean_url}")
 
     async def complete(
         self,
@@ -208,29 +181,33 @@ class LLMClient:
         return supports_vision(getattr(self.config, "binding", "openai"), self.config.model)
 
 
-_client: LLMClient | None = None
+# One client per group ("" outside any group), built from that group's catalog.
+_clients: dict[str, LLMClient] = {}
 
 
 def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
     """
-    Get or create the singleton LLM client.
+    Get or create the current group's LLM client.
 
     Args:
-        config: Optional configuration. Only used on first call.
+        config: Optional configuration. Only used when the client is first built.
 
     Returns:
         LLMClient instance
     """
-    global _client
-    if _client is None:
-        _client = LLMClient(config)
-    return _client
+    key = catalog_group_key()
+    client = _clients.get(key)
+    if client is None:
+        client = _clients[key] = LLMClient(config)
+    return client
 
 
-def reset_llm_client() -> None:
-    """Reset the singleton LLM client."""
-    global _client
-    _client = None
+def reset_llm_client(group_key: str | None = None) -> None:
+    """Forget one group's LLM client, or every group's."""
+    if group_key is None:
+        _clients.clear()
+    else:
+        _clients.pop(group_key, None)
     # The services-layer factory owns the actual SDK connection pools. Keep a
     # settings reload authoritative by retiring clients built from the old
     # credentials/base URL as well as this legacy facade.

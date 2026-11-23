@@ -44,7 +44,8 @@ from .oauth import (
     generate_pkce,
     oauth_state_matches,
 )
-from .storage import CodexCredentialStore
+from .group_store import GroupCodexStore
+from .storage import BaseCredentialStore, CodexCredentialStore
 
 logger = logging.getLogger(__name__)
 
@@ -429,7 +430,7 @@ class CodexOAuthService:
 
     def __init__(
         self,
-        store: CodexCredentialStore,
+        store: BaseCredentialStore,
         catalog: CodexModelCatalog,
         model_catalog: ModelCatalogService,
         *,
@@ -1161,48 +1162,52 @@ class CodexOAuthService:
         return value
 
 
+# One sign-in service per group ("" outside any group), each on its own login.
 _SERVICE_INSTANCES: dict[str, CodexOAuthService] = {}
 
 
 def _codex_secrets_root() -> Path:
-    """The deployment's one Codex login, kept with the administrator.
-
-    Every account shares it: the administrator signs in once, and learners run
-    on that login like on any other model the administrator configured. It lives
-    under ``data/system``, never inside a workspace subtree.
-    """
+    """Where code running with no group (tests, scripts) keeps its login."""
     from masterly.multi_user.models import LOCAL_ADMIN_ID
     from masterly.multi_user.paths import owner_secrets_dir
 
     return owner_secrets_dir(LOCAL_ADMIN_ID)
 
 
-def _shared_model_catalog_service() -> ModelCatalogService:
-    """The shared catalog a sign-in publishes its managed profile into."""
-    from masterly.multi_user.paths import get_admin_path_service
-
-    return ModelCatalogService.get_instance(
-        get_admin_path_service().get_settings_file("model_catalog")
-    )
-
-
 def get_codex_oauth_service() -> CodexOAuthService:
-    secrets_root = _codex_secrets_root()
-    key = str(secrets_root)
-    service = _SERVICE_INSTANCES.get(key)
+    """The ChatGPT sign-in of the signed-in account's group.
+
+    The owner signs in once for the group: the login is kept encrypted in the
+    group's row and its models are published into the group's catalog, so the
+    group's learners run on it like on any other model the owner configured.
+    """
+    from masterly.multi_user.context import get_current_user
+
+    group_id = get_current_user().group_id or ""
+    service = _SERVICE_INSTANCES.get(group_id)
     if service is None:
+        store: BaseCredentialStore
+        if group_id:
+            from masterly.services.config.group_catalog import get_group_catalog_service
+
+            store = GroupCodexStore(group_id)
+            model_catalog: ModelCatalogService = get_group_catalog_service(group_id)
+        else:
+            from masterly.services.config.model_catalog import get_model_catalog_service
+
+            store = CodexCredentialStore(_codex_secrets_root())
+            model_catalog = get_model_catalog_service()
         callback_forward_port = load_system_settings()["frontend_port"]
-        store = CodexCredentialStore(secrets_root)
         http = httpx.AsyncClient(timeout=30)
         catalog = CodexModelCatalog(store, http=http)
         service = CodexOAuthService(
             store,
             catalog,
-            _shared_model_catalog_service(),
+            model_catalog,
             oauth_client=CodexOAuthClient(http),
             callback_forward_port=callback_forward_port,
         )
-        _SERVICE_INSTANCES[key] = service
+        _SERVICE_INSTANCES[group_id] = service
     return service
 
 

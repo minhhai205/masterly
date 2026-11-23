@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { stageRegistryAction, type RegistryEdit } from "@/lib/provider-registry";
+import type { RegistryEdit } from "@/lib/provider-registry";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/features/settings/store/SettingsStore";
 import { flattenModels, modelProvider } from "@/lib/provider-registry";
@@ -102,13 +102,8 @@ function choiceValue(
 
 export function TaskModelsWorkspace() {
   const { t } = useTranslation();
-  const { draft: catalog, taskKinds, catalogEditable, mutateCatalog, applying } =
+  const { draft: catalog, taskKinds, catalogEditable, saveRegistry, applying } =
     useSettings();
-
-  const stageRegistry = async (edit: RegistryEdit) => {
-    mutateCatalog((next) => stageRegistryAction(next, edit));
-    return true;
-  };
   if (!catalogEditable)
     return (
       <p className="text-sm text-[var(--muted-foreground)]">
@@ -148,7 +143,7 @@ export function TaskModelsWorkspace() {
   const save = (value: string, taskKind?: string) => {
     const choice = choiceFor(value);
     if (!choice) return;
-    void stageRegistry({
+    void saveRegistry({
       kind: "task_choice",
       task: taskKind ? { ...choice, task_kind: taskKind } : choice,
     });

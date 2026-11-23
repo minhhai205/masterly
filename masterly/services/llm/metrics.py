@@ -7,7 +7,6 @@ one collector; different turns/users get different ContextVar bindings.
 from __future__ import annotations
 
 from contextvars import ContextVar
-import logging
 import time
 from typing import Any
 import uuid
@@ -75,15 +74,6 @@ class CallMeasurement:
         self.enabled = not measurement_active.get()
         self.collector = current_usage.get() if self.enabled else None
         self.call_id = uuid.uuid4().hex
-        self.started_at = time.time()
-        self.ledger = None
-        if self.enabled:
-            from .usage_ledger import ledger_path
-
-            try:
-                self.ledger = ledger_path()
-            except Exception:
-                logging.getLogger(__name__).exception("Unable to resolve usage ledger")
         self.model, self.provider = model, provider
         self.started = time.perf_counter()
         self.first: float | None = None
@@ -163,20 +153,6 @@ class CallMeasurement:
         }
         if self.collector is not None:
             self.collector.calls.append(record)
-        if self.ledger is not None:
-            from .usage_ledger import record_call
-
-            try:
-                record_call(
-                    self.ledger,
-                    record,
-                    started_at=self.started_at,
-                    session_id=self.collector.session_id if self.collector else "",
-                    turn_id=self.collector.turn_id if self.collector else "",
-                    source=self.collector.source if self.collector else "",
-                )
-            except Exception:
-                logging.getLogger(__name__).exception("Unable to persist LLM usage")
 
 
 async def measure_provider_call(call: Any, *, provider: str = "", **kwargs: Any) -> Any:

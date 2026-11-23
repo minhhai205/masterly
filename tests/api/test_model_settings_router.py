@@ -1,4 +1,4 @@
-"""Models & services API: provider choices, secrets, draft/apply, admin-only access."""
+"""Models & services API: provider choices, secrets, immediate saves, owner-only access."""
 
 from __future__ import annotations
 
@@ -286,111 +286,76 @@ async def test_get_settings_never_returns_catalog_secrets(monkeypatch: pytest.Mo
     ]
 
 
-@pytest.mark.asyncio
-async def test_apply_catalog_invalidates_runtime_caches(monkeypatch: pytest.MonkeyPatch) -> None:
-    service = _FakeCatalogService(_catalog("before"))
-    _patch_runtime(monkeypatch, service)
-    applied_catalog = _catalog("after")
-
-    llm_config_module.get_llm_config()
-    old_llm_client = llm_client_module.get_llm_client()
-    old_embedding_client = embedding_client_module.get_embedding_client()
-
-    response = await settings_router.apply_catalog(
-        settings_router.CatalogPayload(catalog=applied_catalog)
+def _model_edit(model: str) -> settings_router.RegistryEditPayload:
+    return settings_router.RegistryEditPayload(
+        kind="model",
+        service="llm",
+        profile_id="llm-profile-default",
+        model_id="llm-model-default",
+        model={"id": "llm-model-default", "name": model, "model": model},
     )
 
-    new_llm_client = llm_client_module.get_llm_client()
-    new_embedding_client = embedding_client_module.get_embedding_client()
-    assert response["catalog"] == settings_router.redact_catalog_secrets(applied_catalog)
-    assert service.load() == applied_catalog
-    assert llm_config_module.get_llm_config().model == "gpt-after"
-    assert new_llm_client is not old_llm_client
-    assert new_llm_client.config.base_url == "https://after-llm.example/v1"
-    assert new_embedding_client is not old_embedding_client
-    assert new_embedding_client.config.model == "text-embedding-after"
-
 
 @pytest.mark.asyncio
-async def test_reapplying_an_unchanged_catalog_keeps_the_runtime_clients(
+async def test_saving_a_model_applies_it_and_resets_runtime_clients(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An apply that changes nothing must not reset the shared clients."""
-    catalog = _catalog("same")
-    service = _FakeCatalogService(catalog)
+    service = _FakeCatalogService(_catalog("before"))
     _patch_runtime(monkeypatch, service)
 
     llm_config_module.get_llm_config()
     old_llm_client = llm_client_module.get_llm_client()
     old_embedding_client = embedding_client_module.get_embedding_client()
 
-    await settings_router.apply_catalog(settings_router.CatalogPayload(catalog=catalog))
+    response = await settings_router.apply_registry_edit(_model_edit("gpt-after"))
 
-    assert llm_client_module.get_llm_client() is old_llm_client
-    assert embedding_client_module.get_embedding_client() is old_embedding_client
+    assert llm_config_module.get_llm_config().model == "gpt-after"
+    assert llm_client_module.get_llm_client() is not old_llm_client
+    assert embedding_client_module.get_embedding_client() is not old_embedding_client
+    saved = service.load()
+    assert saved["services"]["llm"]["profiles"][0]["api_key"] == "before-llm-key"
+    assert saved["services"]["embedding"] == _catalog("before")["services"]["embedding"]
+    assert response["catalog"]["services"]["llm"]["profiles"][0]["api_key"] == (
+        CATALOG_SECRET_MASK
+    )
+    assert set(response) == {"catalog"}
 
 
 @pytest.mark.asyncio
-async def test_reapplying_one_unchanged_service_keeps_the_runtime_clients(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
+async def test_resaving_an_unchanged_model_keeps_the_runtime_clients(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from masterly.services.config.settings_draft import SettingsDraftService
-
-    catalog = _catalog("service")
-    service = _FakeCatalogService(catalog)
+    """A save that changes nothing must not reset the shared clients."""
+    service = _FakeCatalogService(_catalog("same"))
     _patch_runtime(monkeypatch, service)
-    draft_service = SettingsDraftService(tmp_path / "settings_draft.json")
-    monkeypatch.setattr(settings_router, "get_settings_draft_service", lambda: draft_service)
 
+    llm_config_module.get_llm_config()
     old_llm_client = llm_client_module.get_llm_client()
     old_embedding_client = embedding_client_module.get_embedding_client()
 
-    await settings_router.apply_catalog_service(
-        settings_router.CatalogServicePayload(service="llm", config=catalog["services"]["llm"])
-    )
+    await settings_router.apply_registry_edit(_model_edit("gpt-same"))
 
     assert llm_client_module.get_llm_client() is old_llm_client
     assert embedding_client_module.get_embedding_client() is old_embedding_client
 
 
 @pytest.mark.asyncio
-async def test_apply_catalog_service_only_promotes_the_selected_service_and_updates_saved_draft(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
+async def test_an_invalid_edit_leaves_the_catalog_untouched(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from masterly.services.config.settings_draft import SettingsDraftService
+    from fastapi import HTTPException
 
-    live = _catalog("live")
-    draft = deepcopy(live)
-    draft["services"]["embedding"]["profiles"][0]["base_url"] = "https://new-embedding.example/v1"
-    draft["services"]["embedding"]["profiles"][0]["api_key"] = "new-embedding-key"
-    draft["services"]["llm"]["profiles"][0]["name"] = "Unapplied LLM edit"
-
-    catalog_service = _FakeCatalogService(live)
-    draft_service = SettingsDraftService(tmp_path / "settings_draft.json")
-    draft_service.save({"catalog": draft, "extensions": {}})
-    monkeypatch.setattr(settings_router, "get_model_catalog_service", lambda: catalog_service)
-    monkeypatch.setattr(settings_router, "get_settings_draft_service", lambda: draft_service)
-    monkeypatch.setattr(settings_router, "_runtime_catalog_write", contextlib.nullcontext)
-
-    response = await settings_router.apply_catalog_service(
-        settings_router.CatalogServicePayload(
-            service="embedding", config=draft["services"]["embedding"]
-        )
+    service = _FakeCatalogService(_catalog("kept"))
+    _patch_runtime(monkeypatch, service)
+    edit = settings_router.RegistryEditPayload(
+        kind="model", service="llm", profile_id="llm-profile-default", model={"id": "x"}
     )
 
-    applied = catalog_service.load()
-    embedding = applied["services"]["embedding"]["profiles"][0]
-    assert embedding["base_url"] == "https://new-embedding.example/v1"
-    assert embedding["api_key"] == "new-embedding-key"
-    assert applied["services"]["llm"]["profiles"][0]["name"] == "Default LLM Endpoint"
+    with pytest.raises(HTTPException) as exc:
+        await settings_router.apply_registry_edit(edit)
 
-    remaining = draft_service.load()
-    assert remaining["catalog"]["services"]["embedding"] == applied["services"]["embedding"]
-    assert remaining["catalog"]["services"]["llm"]["profiles"][0]["name"] == "Unapplied LLM edit"
-    assert response["draft"] is not None
-    assert response["catalog"]["services"]["embedding"]["profiles"][0]["api_key"] == (
-        CATALOG_SECRET_MASK
-    )
+    assert exc.value.status_code == 400
+    assert service.load() == _catalog("kept")
 
 
 # --- Model listing ---------------------------------------------------------
@@ -629,7 +594,7 @@ def test_model_settings_need_a_session(app, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.undo()  # real owner check
     with TestClient(app) as client:
         assert client.get("/api/settings").status_code == 401
-        assert client.get("/api/settings/draft").status_code == 401
+        assert client.post("/api/settings/apply/registry", json={"kind": "default"}).status_code == 401
 
 
 def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
@@ -639,23 +604,17 @@ def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
     with _signed_in(app, learner, "learner-pass") as client:
         body = client.get("/api/settings").json()
         assert set(body) == {"ui"}
-        assert client.get("/api/settings/draft").status_code == 403
-        assert client.put("/api/settings/draft", json={"catalog": {}}).status_code == 403
-        assert client.delete("/api/settings/draft").status_code == 403
-        assert client.post("/api/settings/apply").status_code == 403
-        # The ChatGPT login is shared, so only the group owner manages it.
+        assert (
+            client.post("/api/settings/apply/registry", json={"kind": "default"}).status_code
+            == 403
+        )
+        # The ChatGPT login belongs to the whole group, so only its owner manages it.
         assert client.get("/api/settings/providers/openai-codex/oauth/status").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/start").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/logout").status_code == 403
-        assert (
-            client.post(
-                "/api/settings/apply/service", json={"service": "llm", "config": {}}
-            ).status_code
-            == 403
-        )
 
 
-def test_owner_reads_the_masked_catalog_and_stages_a_draft(
+def test_owner_saves_a_provider_and_reads_it_back_masked(
     app, owner, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.undo()
@@ -664,12 +623,26 @@ def test_owner_reads_the_masked_catalog_and_stages_a_draft(
         assert set(body["catalog"]["services"]) == {"llm", "task", "embedding", "search"}
         assert {"providers", "connection_targets", "task_kinds"} <= set(body)
 
-        draft = _catalog("staged")
-        saved = client.put("/api/settings/draft", json={"catalog": draft}).json()["draft"]
-        assert saved["catalog"]["services"]["llm"]["profiles"][0]["api_key"] == (
-            CATALOG_SECRET_MASK
+        ref = {"connection_id": "conn-router-test"}
+        saved = client.post(
+            "/api/settings/apply/registry",
+            json={
+                "kind": "provider",
+                "ref": ref,
+                "fields": {"name": "Gateway", "provider": "openai", "api_key": "sk-test"},
+            },
         )
-        # A draft is not live: the runtime catalog is unchanged until applied.
+        assert saved.status_code == 200
+        # Saved means live: the next read already has it, with the key masked.
         live = client.get("/api/settings").json()["catalog"]
-        assert live["services"]["llm"]["profiles"] == []
-        assert client.delete("/api/settings/draft").json() == {"draft": None}
+        connection = next(c for c in live["connections"] if c["id"] == "conn-router-test")
+        assert connection["name"] == "Gateway"
+        assert connection["api_key"] == CATALOG_SECRET_MASK
+
+        removed = client.post(
+            "/api/settings/apply/registry",
+            json={"kind": "provider", "ref": ref, "delete": True},
+        )
+        assert removed.status_code == 200
+        live = client.get("/api/settings").json()["catalog"]
+        assert all(c["id"] != "conn-router-test" for c in live.get("connections", []))

@@ -1,10 +1,10 @@
 """Models & services: the shared model catalog behind the settings pages.
 
-One catalog serves every account. Only the administrator reads or changes it;
-a learner calling these endpoints gets 403, except ``GET /api/settings`` which
+Each group has its own catalog. Only the group owner reads or changes it; a
+learner calling these endpoints gets 403, except ``GET /api/settings`` which
 answers them with their interface preferences only.
 
-Edits are staged in a draft first and reach the runtime when applied. Secrets
+Every edit names one provider, model or default and applies at once. Secrets
 leave the server masked and are restored from the stored copy by ID when a
 masked value comes back.
 """
@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator
 import contextlib
-from copy import deepcopy
 import json
 import logging
 from typing import Any, Literal
@@ -36,13 +35,7 @@ from masterly.services.config import (
     redact_catalog_secrets,
     restore_catalog_secrets,
 )
-from masterly.services.config.settings_draft import (
-    get_settings_draft_service,
-    is_empty_draft,
-    merge_draft_secrets,
-    redact_draft,
-)
-from masterly.services.llm.config import clear_llm_config_cache
+from masterly.services.llm.config import catalog_group_key, clear_llm_config_cache
 from masterly.services.settings.interface_settings import get_ui_settings
 
 logger = logging.getLogger(__name__)
@@ -56,14 +49,6 @@ class CatalogPayload(BaseModel):
     catalog: dict[str, Any]
 
 
-class ProviderEditPayload(BaseModel):
-    service: ServiceName
-    profile: dict[str, Any]
-    connection: dict[str, Any] | None = None
-    active_model_id: str | None = None
-    activate: bool = False
-
-
 class RegistryEditPayload(BaseModel):
     kind: Literal["provider", "model", "default", "task_choice"]
     task: dict[str, Any] | None = None
@@ -75,21 +60,6 @@ class RegistryEditPayload(BaseModel):
     model: dict[str, Any] | None = None
     config: dict[str, Any] | None = None
     delete: bool = False
-
-
-class CatalogServicePayload(BaseModel):
-    """One model-catalog service to promote without touching other drafts."""
-
-    service: ServiceName
-    config: dict[str, Any]
-
-
-class SettingsDraftPayload(BaseModel):
-    """The unapplied settings envelope, as the settings UI holds it."""
-
-    catalog: dict[str, Any] | None = None
-    # Opaque per-page state, keyed by the string the page registers with.
-    extensions: dict[str, Any] = Field(default_factory=dict)
 
 
 class CodexOAuthCallbackPayload(BaseModel):
@@ -131,28 +101,25 @@ class ProviderProbePayload(BaseModel):
 
 @contextlib.contextmanager
 def _runtime_catalog_write() -> Iterator[None]:
-    """Bracket a write to the model catalog, resetting clients if it landed.
+    """Bracket a write to the group's catalog, resetting its clients if it landed.
 
-    The LLM and embedding clients are process-wide singletons that resolve from
-    this one file. Resetting them only when the file actually changed keeps a
-    settings visit that re-applies the same configuration from dropping an
-    in-flight turn into the provider retry ladder.
+    The group's LLM and embedding clients are built from this catalog. Resetting
+    them only when it actually changed keeps a save that changes nothing from
+    dropping an in-flight turn into the provider retry ladder.
     """
     service = get_model_catalog_service()
     before = service.load()
     yield
     if service.load() == before:
         return
-    logger.warning(
-        "Admin applied catalog; resetting global LLM/embedding clients. "
-        "In-flight user turns may flip backend client mid-call."
-    )
+    group = catalog_group_key()
+    logger.info("Catalog of group %s changed; resetting its LLM/embedding clients", group)
     from masterly.services.embedding.client import reset_embedding_client
     from masterly.services.llm.client import reset_llm_client
 
-    clear_llm_config_cache()
-    reset_llm_client()
-    reset_embedding_client()
+    clear_llm_config_cache(group)
+    reset_llm_client(group)
+    reset_embedding_client(group)
 
 
 def _require_owner() -> None:
@@ -330,228 +297,29 @@ async def get_settings():
 
 @router.post("/apply/registry")
 async def apply_registry_edit(payload: RegistryEditPayload):
-    """Promote one provider, model, or default without replacing other drafts."""
+    """Apply one provider, model, default or task choice to the live catalog."""
     _require_owner()
     from masterly.services.settings.registry_edit import merge_registry_edit
 
     service = get_model_catalog_service()
-    draft_service = get_settings_draft_service()
-    stored = draft_service.load()
     current = service.load()
-    edit = payload.model_dump(exclude_none=True)
     try:
-        proposed = merge_registry_edit(current, edit, stored_draft=stored.get("catalog"))
+        proposed = merge_registry_edit(current, payload.model_dump(exclude_none=True))
         proposed = reconcile_codex_catalog_update(current, proposed)
-        draft_catalog = stored.get("catalog")
-        if isinstance(draft_catalog, dict):
-            stored["catalog"] = merge_registry_edit(draft_catalog, edit, stored_draft=proposed)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     with _runtime_catalog_write():
         service.apply(proposed)
-    catalog = service.load()
-    if stored.get("catalog") == catalog:
-        stored["catalog"] = None
-    if is_empty_draft(stored):
-        draft_service.clear()
-        public_draft = None
-    else:
-        public_draft = redact_draft(draft_service.save(stored))
-    return {"catalog": redact_catalog_secrets(catalog), "draft": public_draft}
-
-
-@router.post("/apply/provider")
-async def apply_provider_edit(payload: ProviderEditPayload):
-    """Save the provider on screen, preserving every unrelated live/draft entry."""
-    _require_owner()
-    from masterly.services.settings.provider_edit import merge_provider_edit
-
-    service = get_model_catalog_service()
-    draft_service = get_settings_draft_service()
-    stored = draft_service.load()
-    current = service.load()
-    try:
-        proposed = merge_provider_edit(
-            current,
-            payload.service,
-            payload.profile,
-            connection=payload.connection,
-            active_model_id=payload.active_model_id,
-            activate=payload.activate,
-            stored_draft=stored.get("catalog"),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    reconciled = reconcile_codex_catalog_update(current, proposed)
-    with _runtime_catalog_write():
-        service.apply(reconciled)
-    catalog = service.load()
-    draft_catalog = stored.get("catalog")
-    if isinstance(draft_catalog, dict):
-        # Advance only the addressed profile in a saved draft, preserving edits
-        # to its sibling providers and to all non-model settings.
-        saved_profile = next(
-            item
-            for item in catalog["services"][payload.service]["profiles"]
-            if item["id"] == payload.profile["id"]
-        )
-        saved_connection = next(
-            (
-                item
-                for item in catalog.get("connections", [])
-                if item["id"] == (payload.connection or {}).get("id")
-            ),
-            None,
-        )
-        stored["catalog"] = merge_provider_edit(
-            draft_catalog,
-            payload.service,
-            saved_profile,
-            connection=saved_connection,
-            activate=payload.activate,
-            active_model_id=payload.active_model_id,
-        )
-        if stored["catalog"] == catalog:
-            stored["catalog"] = None
-    if is_empty_draft(stored):
-        draft_service.clear()
-        public_draft = None
-    else:
-        public_draft = redact_draft(draft_service.save(stored))
-    return {"catalog": redact_catalog_secrets(catalog), "draft": public_draft}
-
-
-@router.post("/apply/service")
-async def apply_catalog_service(payload: CatalogServicePayload):
-    """Apply one model service while leaving every other draft untouched."""
-    _require_owner()
-    service = get_model_catalog_service()
-    current = service.load()
-    draft_service = get_settings_draft_service()
-    stored_draft = draft_service.load()
-    proposed = deepcopy(current)
-    proposed.setdefault("services", {})[payload.service] = deepcopy(payload.config)
-    restored = restore_catalog_secrets(proposed, stored_draft.get("catalog") or current)
-    restored = restore_catalog_secrets(restored, current)
-    if payload.service == "task" and payload.config.get("mode") == "reference":
-        from masterly.services.model_selection import apply_llm_selection_to_catalog
-
-        try:
-            selection = payload.config.get("selection")
-            if not selection or not selection.get("profile_id") or not selection.get("model_id"):
-                raise ValueError("Choose a configured task model first.")
-            apply_llm_selection_to_catalog(restored, selection)
-        except (ValueError, AttributeError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-    reconciled = reconcile_codex_catalog_update(current, restored)
-    with _runtime_catalog_write():
-        runtime = service.apply(reconciled)
-    catalog = service.load()
-
-    # A saved draft holds a full catalog. Keep it, but advance this one service
-    # to the value that is now live, so reloading the page does not bring the
-    # pre-apply configuration back over the live one.
-    draft_catalog = stored_draft.get("catalog")
-    if isinstance(draft_catalog, dict):
-        draft_catalog.setdefault("services", {})[payload.service] = deepcopy(
-            catalog["services"][payload.service]
-        )
-        stored_draft["catalog"] = None if draft_catalog == catalog else draft_catalog
-
-    if is_empty_draft(stored_draft):
-        draft_service.clear()
-        public_draft = None
-    else:
-        public_draft = redact_draft(draft_service.save(stored_draft))
-
-    return {
-        "message": f"{payload.service} settings applied to runtime.",
-        "catalog": redact_catalog_secrets(catalog),
-        "draft": public_draft,
-        "runtime": runtime,
-    }
-
-
-@router.get("/draft")
-async def get_settings_draft():
-    """Return the unapplied draft, or nothing when there is none.
-
-    Nothing that resolves runtime configuration reads the draft: that is the
-    whole difference between saving a draft and applying it.
-    """
-    _require_owner()
-    draft = get_settings_draft_service().load()
-    if is_empty_draft(draft):
-        return {"draft": None}
-    return {"draft": redact_draft(draft)}
-
-
-@router.put("/draft")
-async def update_settings_draft(payload: SettingsDraftPayload):
-    _require_owner()
-    service = get_settings_draft_service()
-    stored = service.load()
-    merged = merge_draft_secrets(
-        payload.model_dump(),
-        stored,
-        get_model_catalog_service().load(),
-    )
-    if is_empty_draft(merged):
-        service.clear()
-        return {"draft": None}
-    saved = service.save(merged)
-    return {"draft": redact_draft(saved)}
-
-
-@router.delete("/draft")
-async def discard_settings_draft():
-    _require_owner()
-    get_settings_draft_service().clear()
-    return {"draft": None}
-
-
-@router.post("/apply")
-async def apply_catalog(payload: CatalogPayload | None = None):
-    """Move settings into the files the runtime reads, and clear the draft.
-
-    With no body this promotes the stored draft's catalog, which is how the
-    settings UI applies: credentials that only ever existed in a draft would
-    otherwise have to round-trip through the browser as placeholders.
-    """
-    _require_owner()
-    service = get_model_catalog_service()
-    draft_service = get_settings_draft_service()
-    current = service.load()
-    if payload is not None:
-        proposed = restore_catalog_secrets(payload.catalog, current)
-    else:
-        draft_catalog = draft_service.load().get("catalog")
-        proposed = (
-            restore_catalog_secrets(draft_catalog, current)
-            if isinstance(draft_catalog, dict)
-            else current
-        )
-    catalog = reconcile_codex_catalog_update(current, proposed)
-    with _runtime_catalog_write():
-        applied = service.apply(catalog)
-    catalog_after = service.load()
-    draft_service.clear()
-    return {
-        "message": "Catalog applied to runtime settings.",
-        "catalog": redact_catalog_secrets(catalog_after),
-        "runtime": applied,
-    }
+    return {"catalog": redact_catalog_secrets(service.load())}
 
 
 @router.post("/test-provider")
 async def test_provider_connection(payload: ProviderProbePayload):
-    """Test current form credentials, resolving masks from draft/live settings by ID."""
+    """Test the credentials on screen, resolving masked values from the live catalog by ID."""
     _require_owner()
     from masterly.services.settings.provider_probe import probe_provider, probe_search_provider
 
-    current = get_model_catalog_service().load()
-    saved = get_settings_draft_service().load().get("catalog")
-    source = restore_catalog_secrets(saved, current) if isinstance(saved, dict) else current
+    source = get_model_catalog_service().load()
     fields = payload.model_dump()
     if payload.connection_id:
         fields["id"] = payload.connection_id
@@ -658,14 +426,7 @@ async def start_service_test(service: ServiceName, payload: CatalogPayload | Non
     catalog = None
     if payload is not None:
         catalog_service = get_model_catalog_service()
-        current = catalog_service.load()
-        saved = get_settings_draft_service().load().get("catalog")
-        catalog = (
-            restore_catalog_secrets(payload.catalog, saved)
-            if isinstance(saved, dict)
-            else payload.catalog
-        )
-        catalog = restore_catalog_secrets(catalog, current)
+        catalog = restore_catalog_secrets(payload.catalog, catalog_service.load())
         catalog = catalog_service.resolve_connections(catalog)
     run = get_config_test_runner().start(service, catalog)
     return {"run_id": run.id}
@@ -704,8 +465,8 @@ async def cancel_service_test(service: str, run_id: str):
 
 
 # --- ChatGPT (Codex) sign-in -------------------------------------------------
-# One login for the whole deployment: the administrator signs in, every account
-# runs on it (see ``services.codex_auth.service``).
+# One login per group: the owner signs in, every account of the group runs on it
+# (see ``services.codex_auth.service``).
 
 
 def _codex_http_exception(error: CodexAuthError) -> HTTPException:
@@ -735,7 +496,7 @@ async def get_openai_codex_oauth_status() -> dict[str, Any]:
 
 @router.post("/providers/openai-codex/oauth/complete")
 async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dict[str, Any]:
-    """Finish a waiting login from a callback address the administrator pasted.
+    """Finish a waiting login from a callback address the owner pasted.
 
     The provider redirects the browser to a loopback listener on the server.
     When the browser runs on another machine that address fails to load while

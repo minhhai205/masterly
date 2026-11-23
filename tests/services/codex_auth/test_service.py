@@ -125,7 +125,6 @@ def test_service_singleton_reads_frontend_port_only_when_created(
         lambda _store, *, http: object(),
     )
     monkeypatch.setattr(service_module, "CodexOAuthClient", lambda _http: object())
-    monkeypatch.setattr(service_module, "_shared_model_catalog_service", lambda: object())
     monkeypatch.setattr(service_module, "CodexOAuthService", CapturingService)
 
     first = service_module.get_codex_oauth_service()

@@ -211,7 +211,7 @@ export function updateProvider(
 }
 
 /** Three-way, entity-scoped reconciliation: edits made while a save was in
- * flight and unrelated model/provider drafts are not replaced by its response. */
+ * flight and unsaved edits to other models/providers are not replaced by its response. */
 export function reconcileRegistrySave(
   current: Catalog,
   submitted: Catalog,
@@ -224,7 +224,7 @@ export function reconcileRegistrySave(
   if (edit.kind === "task_choice") {
     // `overrides` rides along: a per-task pin is not visible in any of the four
     // pointer fields, so without it the row would snap back to whatever the
-    // draft still held until the next full settings load.
+    // screen still held until the next full settings load.
     for (const field of [
       "mode",
       "selection",
@@ -245,7 +245,11 @@ export function reconcileRegistrySave(
     const before = providerRegistry(submitted).find((p) => p.id === id)?.source;
     const now = providerRegistry(next).find((p) => p.id === id)?.source;
     const saved = providerRegistry(live).find((p) => p.id === id)?.source;
-    if (now && before && saved) {
+    if (now && before && saved && same(now, before)) {
+      // Untouched since it was sent: take the saved copy whole, so fields the
+      // server fills in do not leave the item looking unsaved.
+      replaceProvider(next, edit.ref, structuredClone(saved));
+    } else if (now && before && saved) {
       for (const key of Object.keys(edit.fields ?? {}))
         if (same(Reflect.get(now, key), Reflect.get(before, key)))
           Reflect.set(now, key, structuredClone(Reflect.get(saved, key)));
@@ -271,10 +275,10 @@ export function reconcileRegistrySave(
     );
     if (now && before && edit.kind === "model") {
       if (service === "search") {
-        if (same(now, before)) {
-          if (saved) Object.assign(now, structuredClone(saved));
-          else bucket.profiles = bucket.profiles.filter((p) => p.id !== now.id);
-        }
+        if (same(now, before))
+          bucket.profiles = saved
+            ? bucket.profiles.map((p) => (p === now ? structuredClone(saved) : p))
+            : bucket.profiles.filter((p) => p.id !== now.id);
       } else {
         const id = edit.model_id || edit.model?.id;
         const previousModel = before.models.find((m) => m.id === id);
@@ -293,6 +297,16 @@ export function reconcileRegistrySave(
           if (!saved && now.models.length === 0)
             bucket.profiles = bucket.profiles.filter((p) => p.id !== now.id);
         }
+        // A model saved into a new profile: the server writes the profile's own
+        // fields, so adopt the ones nobody has edited since.
+        if (saved)
+          for (const key of new Set([...Object.keys(before), ...Object.keys(saved)])) {
+            if (key === "models" || !same(Reflect.get(now, key), Reflect.get(before, key)))
+              continue;
+            const value = Reflect.get(saved, key);
+            if (value === undefined) Reflect.deleteProperty(now, key);
+            else Reflect.set(now, key, structuredClone(value));
+          }
       }
     }
     if (
@@ -312,48 +326,53 @@ export function reconcileRegistrySave(
   return next;
 }
 
-/** Apply list actions to the editable catalog; only the global toolbar persists it. */
-export function stageRegistryAction(catalog: Catalog, edit: RegistryEdit): void {
-  if (edit.kind === "task_choice" && edit.task) {
-    const { task_kind, ...choice } = edit.task;
-    const task = catalog.services.task;
-    if (task_kind) {
-      const overrides = { ...task.overrides };
-      if (choice.mode === "global") delete overrides[task_kind];
-      else overrides[task_kind] = choice as NonNullable<CatalogService["overrides"]>[string];
-      task.overrides = overrides;
-      if (!Object.keys(overrides).length) delete task.overrides;
-    } else Object.assign(task, choice);
+function replaceProvider(
+  catalog: Catalog,
+  ref: ProviderRef,
+  value: CatalogConnection | CatalogProfile | undefined,
+): void {
+  if (ref.connection_id) {
+    const items = catalog.connections ?? [];
+    const index = items.findIndex((c) => c.id === ref.connection_id);
+    if (index >= 0 && value) items[index] = value as CatalogConnection;
+    else if (index >= 0) items.splice(index, 1);
+    else if (value) items.push(value as CatalogConnection);
+    catalog.connections = items;
+  } else if (ref.service) {
+    const bucket = catalog.services[ref.service];
+    const index = bucket.profiles.findIndex((p) => p.id === ref.profile_id);
+    if (index >= 0 && value) bucket.profiles[index] = value as CatalogProfile;
+    else if (index >= 0) bucket.profiles.splice(index, 1);
+    else if (value) bucket.profiles.push(value as CatalogProfile);
+  }
+}
+
+/** Put one provider back to its saved state; one never saved goes away. */
+export function revertProvider(catalog: Catalog, live: Catalog, ref: ProviderRef): void {
+  const saved = providerRegistry(live).find((p) => p.id === providerIdentity(ref))?.source;
+  replaceProvider(catalog, ref, saved && structuredClone(saved));
+}
+
+/** Put one model (or search configuration) back to its saved state. */
+export function revertModel(
+  catalog: Catalog,
+  live: Catalog,
+  service: ServiceName,
+  profileId: string,
+  modelId?: string,
+): void {
+  const bucket = catalog.services[service];
+  const saved = live.services[service].profiles.find((p) => p.id === profileId);
+  const index = bucket.profiles.findIndex((p) => p.id === profileId);
+  if (index < 0) return;
+  if (service === "search" || !saved) {
+    if (saved) bucket.profiles[index] = structuredClone(saved);
+    else bucket.profiles.splice(index, 1);
     return;
   }
-  if (edit.kind === "provider" && edit.delete && edit.ref) {
-    if (edit.ref.connection_id) {
-      catalog.connections = catalog.connections?.filter((p) => p.id !== edit.ref!.connection_id);
-    } else if (edit.ref.service) {
-      const bucket = catalog.services[edit.ref.service];
-      bucket.profiles = bucket.profiles.filter((p) => p.id !== edit.ref!.profile_id);
-    }
-    return;
-  }
-  if (!edit.service) return;
-  const bucket = catalog.services[edit.service];
-  const profile = bucket.profiles.find((p) => p.id === edit.profile_id);
-  if (!profile) return;
-  if (edit.kind === "default") {
-    bucket.active_profile_id = profile.id;
-    bucket.active_model_id = edit.model_id ?? null;
-    if (edit.service === "task") bucket.mode = "profiles";
-  } else if (edit.delete) {
-    if (edit.service === "search") {
-      if (profile.provider_ref) bucket.profiles = bucket.profiles.filter((p) => p !== profile);
-      else profile.provider_only = true;
-    } else {
-      profile.models = profile.models.filter((m) => m.id !== edit.model_id);
-      if (!profile.models.length && profile.provider_ref) bucket.profiles = bucket.profiles.filter((p) => p !== profile);
-    }
-    const candidates = bucket.profiles.filter((p) => !p.provider_only && (edit.service === "search" || p.models.length));
-    const active = candidates.find((p) => p.id === bucket.active_profile_id) ?? candidates[0];
-    bucket.active_profile_id = active?.id ?? null;
-    if (!active?.models.some((m) => m.id === bucket.active_model_id)) bucket.active_model_id = active?.models[0]?.id ?? null;
-  }
+  const profile = bucket.profiles[index];
+  const savedModel = saved.models.find((m) => m.id === modelId);
+  const at = profile.models.findIndex((m) => m.id === modelId);
+  if (at >= 0 && savedModel) profile.models[at] = structuredClone(savedModel);
+  else if (at >= 0) profile.models.splice(at, 1);
 }

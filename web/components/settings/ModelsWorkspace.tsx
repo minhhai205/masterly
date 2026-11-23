@@ -1,7 +1,6 @@
 "use client";
 
 import Tooltip from "@/shared/ui/Tooltip";
-import { stageRegistryAction, type RegistryEdit } from "@/lib/provider-registry";
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
@@ -20,6 +19,7 @@ import {
   providerIdentity,
   providerProbeInput,
   providerRegistry,
+  revertModel,
   SERVICE_TITLES,
   type ProviderSource,
 } from "@/lib/provider-registry";
@@ -57,6 +57,7 @@ export function ModelsWorkspace({
 }) {
   const { t } = useTranslation();
   const {
+    catalog,
     draft,
     providers,
     connectionTargets,
@@ -104,8 +105,8 @@ export function ModelsWorkspace({
     revealDetail();
   };
   const selectedRow = rows.find((r) => r.key === selected);
-  // Providers and models can be created together in the same draft.
-  const sources = providerRegistry(draft);
+  // A model can only point at a provider that is already saved.
+  const sources = providerRegistry(catalog);
   /** Whether a built-in adapter is on record for this vendor and service. */
   const declared = (source: ProviderSource, service: ServiceName) => {
     const adapterService = service === "task" ? "llm" : service;
@@ -490,16 +491,14 @@ function ModelEditor({
 }) {
   const { t } = useTranslation();
   const {
+    catalog,
     draft,
     providers,
     connectionTargets,
     mutateCatalog,
+    saveRegistry,
     applying,
   } = useSettings();
-  const stageRegistry = async (edit: RegistryEdit) => {
-    mutateCatalog((next) => stageRegistryAction(next, edit));
-    return true;
-  };
   const { service, profile, model } = row;
   const provider = modelProvider(draft, service, profile, model);
   const [listed, setListed] = useState<{
@@ -512,13 +511,19 @@ function ModelEditor({
   const managed = Boolean(
     model?.managed_by || profile.read_only || profile.managed_by,
   );
-  const saved = draft.services[service].profiles.find(
+  const saved = catalog.services[service].profiles.find(
     (p) => p.id === profile.id,
   );
   const savedModel =
     service === "search"
       ? Boolean(saved && !saved.provider_only)
       : saved?.models.some((m) => m.id === model?.id);
+  const changed =
+    !savedModel ||
+    (service === "search"
+      ? JSON.stringify(saved) !== JSON.stringify(profile)
+      : JSON.stringify(saved?.models.find((m) => m.id === model?.id)) !==
+        JSON.stringify(model));
   const active =
     savedModel &&
     draft.services[service].active_profile_id === profile.id &&
@@ -563,8 +568,33 @@ function ModelEditor({
     listed && listed.provider === provider?.id
       ? listed.models
       : provider?.source.discovery?.models || [];
+  const save = () =>
+    void saveRegistry(
+      service === "search"
+        ? {
+            kind: "model",
+            service,
+            profile_id: profile.id,
+            config: {
+              provider_ref: profile.provider_ref,
+              display_name: profile.display_name,
+              max_results: profile.max_results,
+            },
+          }
+        : { kind: "model", service, profile_id: profile.id, model_id: model?.id, model: model ?? undefined },
+    );
+  const revert = () => {
+    mutateCatalog((next) => revertModel(next, catalog, service, profile.id, model?.id));
+    if (!savedModel) onRemoved();
+  };
   const remove = async () => {
-    await stageRegistry({ kind: "model", service, profile_id: profile.id, model_id: model?.id, delete: true });
+    if (
+      savedModel &&
+      !(await saveRegistry({ kind: "model", service, profile_id: profile.id, model_id: model?.id, delete: true }))
+    )
+      return;
+    if (!savedModel)
+      mutateCatalog((next) => revertModel(next, catalog, service, profile.id, model?.id));
     onRemoved();
   };
 
@@ -584,9 +614,9 @@ function ModelEditor({
           <span className="text-[var(--muted-foreground)]">
             {t(SERVICE_TITLES[service])}
           </span>
-          {!savedModel && (
+          {changed && (
             <span className="text-[var(--muted-foreground)]">
-              · {t("Not saved")}
+              · {t(savedModel ? "Unsaved changes" : "Not saved")}
             </span>
           )}
         </div>
@@ -706,12 +736,27 @@ function ModelEditor({
         {model && <ModelParameters service={service} model={model} update={update} managed={managed} />}
         <ModelTestPanel service={service} profile={profile} model={model} />
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
-
+          <button
+            type="button"
+            disabled={applying || !changed || (Boolean(model) && !model?.model.trim())}
+            onClick={save}
+            className={registryPrimary}
+          >
+            {t("Save")}
+          </button>
+          <button
+            type="button"
+            disabled={applying || !changed}
+            onClick={revert}
+            className={registryButton}
+          >
+            {t(savedModel ? "Discard changes" : "Cancel")}
+          </button>
           <button
             type="button"
             disabled={applying || !savedModel || Boolean(active)}
             onClick={() =>
-              void stageRegistry({
+              void saveRegistry({
                 kind: "default",
                 service,
                 profile_id: profile.id,

@@ -2,7 +2,7 @@
 Web Search Base Provider - Abstract base class for all search providers
 
 This module defines the BaseSearchProvider class that all search providers must inherit from.
-Providers read credentials from data/user/settings/model_catalog.json.
+Providers read credentials from the model catalog of the current group.
 """
 
 from abc import ABC, abstractmethod

@@ -461,12 +461,12 @@ class ConfigTestRunner:
             saved_catalog = self._persist_embedding_dimension(catalog, model, detected_dim)
             run.emit(
                 "catalog",
-                "Saved detected embedding dimension to model_catalog.json.",
+                "Saved the detected embedding dimension to the model catalog.",
                 catalog=saved_catalog,
             )
         else:
             run.emit(
-                "info", "Draft tested. Select the detected dimension in settings before applying."
+                "info", "Tested unsaved settings. Choose the detected dimension, then save the model."
             )
 
     def _test_search(self, run: TestRun, catalog: dict[str, Any]) -> None:

@@ -20,7 +20,7 @@ const THEMES: { id: Theme; label: string }[] = [
 
 /**
  * Theme and interface language of the signed-in account. These apply at once
- * and are saved to the account; they are not part of the model-settings draft.
+ * and are saved to the account.
  */
 export default function AppearanceSettingsSection() {
   const { t } = useTranslation();
