@@ -46,7 +46,7 @@ erDiagram
     documents ||--o{ chunks : "cắt thành"
 ```
 
-14 bảng, chia ba vùng:
+15 bảng, chia ba vùng:
 
 - Nhóm và tài khoản: `groups`, `accounts`.
 - Theo tài khoản: `workspaces`, `memories`, `llm_calls`.
