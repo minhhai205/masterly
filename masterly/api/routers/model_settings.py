@@ -155,11 +155,11 @@ def _runtime_catalog_write() -> Iterator[None]:
     reset_embedding_client()
 
 
-def _require_settings_admin() -> None:
-    if not get_current_user().is_admin:
+def _require_owner() -> None:
+    if not get_current_user().is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Model configuration is managed by an administrator.",
+            detail="Model configuration is managed by the group owner.",
         )
 
 
@@ -313,7 +313,7 @@ def _connection_targets() -> list[dict[str, Any]]:
 
 @router.get("")
 async def get_settings():
-    if not get_current_user().is_admin:
+    if not get_current_user().is_owner:
         # Learners never see the catalog (provider URLs or keys).
         return {"ui": get_ui_settings()}
     from masterly.services.model_selection.tasks import task_kind_payload
@@ -331,7 +331,7 @@ async def get_settings():
 @router.post("/apply/registry")
 async def apply_registry_edit(payload: RegistryEditPayload):
     """Promote one provider, model, or default without replacing other drafts."""
-    _require_settings_admin()
+    _require_owner()
     from masterly.services.settings.registry_edit import merge_registry_edit
 
     service = get_model_catalog_service()
@@ -363,7 +363,7 @@ async def apply_registry_edit(payload: RegistryEditPayload):
 @router.post("/apply/provider")
 async def apply_provider_edit(payload: ProviderEditPayload):
     """Save the provider on screen, preserving every unrelated live/draft entry."""
-    _require_settings_admin()
+    _require_owner()
     from masterly.services.settings.provider_edit import merge_provider_edit
 
     service = get_model_catalog_service()
@@ -424,7 +424,7 @@ async def apply_provider_edit(payload: ProviderEditPayload):
 @router.post("/apply/service")
 async def apply_catalog_service(payload: CatalogServicePayload):
     """Apply one model service while leaving every other draft untouched."""
-    _require_settings_admin()
+    _require_owner()
     service = get_model_catalog_service()
     current = service.load()
     draft_service = get_settings_draft_service()
@@ -479,7 +479,7 @@ async def get_settings_draft():
     Nothing that resolves runtime configuration reads the draft: that is the
     whole difference between saving a draft and applying it.
     """
-    _require_settings_admin()
+    _require_owner()
     draft = get_settings_draft_service().load()
     if is_empty_draft(draft):
         return {"draft": None}
@@ -488,7 +488,7 @@ async def get_settings_draft():
 
 @router.put("/draft")
 async def update_settings_draft(payload: SettingsDraftPayload):
-    _require_settings_admin()
+    _require_owner()
     service = get_settings_draft_service()
     stored = service.load()
     merged = merge_draft_secrets(
@@ -505,7 +505,7 @@ async def update_settings_draft(payload: SettingsDraftPayload):
 
 @router.delete("/draft")
 async def discard_settings_draft():
-    _require_settings_admin()
+    _require_owner()
     get_settings_draft_service().clear()
     return {"draft": None}
 
@@ -518,7 +518,7 @@ async def apply_catalog(payload: CatalogPayload | None = None):
     settings UI applies: credentials that only ever existed in a draft would
     otherwise have to round-trip through the browser as placeholders.
     """
-    _require_settings_admin()
+    _require_owner()
     service = get_model_catalog_service()
     draft_service = get_settings_draft_service()
     current = service.load()
@@ -546,7 +546,7 @@ async def apply_catalog(payload: CatalogPayload | None = None):
 @router.post("/test-provider")
 async def test_provider_connection(payload: ProviderProbePayload):
     """Test current form credentials, resolving masks from draft/live settings by ID."""
-    _require_settings_admin()
+    _require_owner()
     from masterly.services.settings.provider_probe import probe_provider, probe_search_provider
 
     current = get_model_catalog_service().load()
@@ -597,7 +597,7 @@ async def fetch_models_from_provider(payload: FetchModelsPayload):
     populate a model picker from ``base_url`` + ``api_key`` instead of making
     the user type model IDs by hand.
     """
-    _require_settings_admin()
+    _require_owner()
     from masterly.services.llm.factory import fetch_models as fetch_llm_models
 
     base_url = (payload.base_url or "").strip()
@@ -640,7 +640,7 @@ async def resolve_model_capabilities(payload: ModelCapabilitiesQuery):
     The settings UI shows these as the value "Auto" resolves to next to each
     per-model override, so a user can see what they are overriding.
     """
-    _require_settings_admin()
+    _require_owner()
     from masterly.services.llm.capabilities import effective_capabilities
 
     binding = (payload.binding or "").strip().lower() or "openai"
@@ -654,7 +654,7 @@ async def resolve_model_capabilities(payload: ModelCapabilitiesQuery):
 
 @router.post("/tests/{service}/start")
 async def start_service_test(service: ServiceName, payload: CatalogPayload | None = None):
-    _require_settings_admin()
+    _require_owner()
     catalog = None
     if payload is not None:
         catalog_service = get_model_catalog_service()
@@ -673,7 +673,7 @@ async def start_service_test(service: ServiceName, payload: CatalogPayload | Non
 
 @router.get("/tests/{service}/{run_id}/events")
 async def stream_service_test_events(service: str, run_id: str, request: Request):
-    _require_settings_admin()
+    _require_owner()
     runner = get_config_test_runner()
     run = runner.get(run_id)
 
@@ -698,7 +698,7 @@ async def stream_service_test_events(service: str, run_id: str, request: Request
 
 @router.post("/tests/{service}/{run_id}/cancel")
 async def cancel_service_test(service: str, run_id: str):
-    _require_settings_admin()
+    _require_owner()
     get_config_test_runner().cancel(run_id)
     return {"message": "Cancelled"}
 
@@ -717,7 +717,7 @@ def _codex_http_exception(error: CodexAuthError) -> HTTPException:
 
 @router.post("/providers/openai-codex/oauth/start")
 async def start_openai_codex_oauth() -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     try:
         return await get_codex_oauth_service().start_login()
     except CodexAuthError as exc:
@@ -726,7 +726,7 @@ async def start_openai_codex_oauth() -> dict[str, Any]:
 
 @router.get("/providers/openai-codex/oauth/status")
 async def get_openai_codex_oauth_status() -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     try:
         return get_codex_oauth_service().public_status()
     except CodexAuthError as exc:
@@ -741,7 +741,7 @@ async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dic
     When the browser runs on another machine that address fails to load while
     the sign-in waits; pasting it here completes the same exchange.
     """
-    _require_settings_admin()
+    _require_owner()
     try:
         return await get_codex_oauth_service().complete_login_with_callback_url(
             payload.callback_url
@@ -752,7 +752,7 @@ async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dic
 
 @router.post("/providers/openai-codex/oauth/cancel")
 async def cancel_openai_codex_oauth() -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     try:
         return await get_codex_oauth_service().cancel_login()
     except CodexAuthError as exc:
@@ -761,7 +761,7 @@ async def cancel_openai_codex_oauth() -> dict[str, Any]:
 
 @router.post("/providers/openai-codex/oauth/logout")
 async def logout_openai_codex_oauth() -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     try:
         return await get_codex_oauth_service().logout()
     except CodexAuthError as exc:
@@ -770,7 +770,7 @@ async def logout_openai_codex_oauth() -> dict[str, Any]:
 
 @router.post("/providers/openai-codex/models/refresh")
 async def refresh_openai_codex_models() -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     try:
         return await get_codex_oauth_service().refresh_models()
     except CodexAuthError as exc:
@@ -781,7 +781,7 @@ async def refresh_openai_codex_models() -> dict[str, Any]:
 async def update_openai_codex_reasoning_effort(
     payload: CodexReasoningEffortUpdate,
 ) -> dict[str, Any]:
-    _require_settings_admin()
+    _require_owner()
     # The Codex service writes the catalog the runtime resolves against; bracket
     # it like every other catalog write so the next turn uses the new effort.
     with _runtime_catalog_write():

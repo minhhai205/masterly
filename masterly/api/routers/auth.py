@@ -1,13 +1,18 @@
 """Sign-in, session and own-profile endpoints, plus the auth guards other routers use.
 
-Sign-in is always on. Sessions are JWTs carried in an httpOnly cookie (or an
-``Authorization: Bearer`` header). There is no self-registration; account
-management for the administrator arrives with F02.
+Anyone may register: registering creates a group and its owner. Sessions are
+JWTs carried in an httpOnly cookie (or an ``Authorization: Bearer`` header) that
+name an account. Every guarded request loads that account from the
+database and installs it as the current user; a disabled or deleted account is
+treated as signed out.
 """
+
+from __future__ import annotations
 
 from contextvars import Token as _CtxToken
 import logging
 import re
+import uuid
 
 from fastapi import (
     APIRouter,
@@ -22,35 +27,26 @@ from fastapi import (
     WebSocket,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel, field_validator
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from masterly.multi_user.context import (
-    reset_current_user,
-    set_current_user,
-    user_from_token_payload,
-)
-from masterly.services.auth import (
-    TOKEN_EXPIRE_HOURS,
-    TokenPayload,
-    authenticate,
-    create_token,
-    decode_token,
-    get_user_info,
-    set_avatar,
-)
+from masterly.db import get_session, get_session_factory
+from masterly.db.models import Account
+from masterly.multi_user.context import current_user_for, reset_current_user, set_current_user
+from masterly.multi_user.models import CurrentUser
+from masterly.services import accounts
+from masterly.services.auth import create_token, decode_token, get_auth_settings
 from masterly.services.codex_auth.contracts import CodexAuthError
 from masterly.services.codex_auth.service import deliver_codex_oauth_callback
-from masterly.services.config import load_auth_settings
+from masterly.storage import get_storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 COOKIE_NAME = "masterly_token"
-_COOKIE_MAX_AGE = TOKEN_EXPIRE_HOURS * 3600
-_SECURE = bool(load_auth_settings()["cookie_secure"])
-_SAMESITE = "none" if _SECURE else "lax"
 
 
 def _cookie_attrs() -> dict:
@@ -59,7 +55,13 @@ def _cookie_attrs() -> dict:
     The deleting ``Set-Cookie`` must carry the same attributes as the one that
     created the cookie, or browsers keep the old cookie.
     """
-    return {"key": COOKIE_NAME, "httponly": True, "samesite": _SAMESITE, "secure": _SECURE}
+    secure = get_auth_settings().cookie_secure
+    return {
+        "key": COOKIE_NAME,
+        "httponly": True,
+        "samesite": "none" if secure else "lax",
+        "secure": secure,
+    }
 
 
 def _no_store(response: Response) -> None:
@@ -72,25 +74,40 @@ def _no_store(response: Response) -> None:
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    display_name: str = Field(default="", max_length=80)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        # bcrypt reads at most 72 bytes; refuse rather than silently truncate.
+        if len(v.encode()) > 72:
+            raise ValueError("Password must be at most 72 bytes")
+        return v
 
 
 class AuthStatusResponse(BaseModel):
     authenticated: bool
     user_id: str | None = None
-    username: str | None = None
+    email: str | None = None
+    display_name: str | None = None
     role: str | None = None
-    is_admin: bool = False
+    is_owner: bool = False
     avatar: str = ""
 
 
 class UserInfo(BaseModel):
-    id: str = ""
-    username: str
+    id: str
+    email: str
+    display_name: str
     role: str
     created_at: str
-    disabled: bool = False
     avatar: str = ""
 
 
@@ -98,10 +115,6 @@ class UserInfo(BaseModel):
 # managed only by the upload endpoint, so an avatar can never point at a file
 # that was not validated.
 _ICON_MARKER_RE = re.compile(r"^icon:[a-z0-9-]{1,32}:[a-z0-9-]{1,32}$")
-
-# User ids are generated as "u_<uuid hex>" (plus the "env-admin" sentinel);
-# anything else is rejected before it reaches the filesystem.
-_USER_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 class UpdateProfileRequest(BaseModel):
@@ -114,6 +127,17 @@ class UpdateProfileRequest(BaseModel):
         if v and not _ICON_MARKER_RE.match(v):
             raise ValueError("Avatar must be empty or 'icon:<name>:<color>'")
         return v
+
+
+def _user_info(user: CurrentUser) -> UserInfo:
+    return UserInfo(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=user.role,
+        created_at=user.created_at,
+        avatar=user.avatar,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -136,63 +160,56 @@ def _extract_token(authorization: str | None, cookie_token: str | None) -> str |
     return _bearer_token_from_header(authorization) or cookie_token
 
 
-def _install_current_user(payload: TokenPayload) -> _CtxToken:
-    """Install the request-local current user. Every authenticated entry point must
-    call this before the handler runs, or data paths would resolve to the wrong
-    account."""
-    return set_current_user(user_from_token_payload(payload))
+async def _signed_in_user(token: str | None) -> CurrentUser | None:
+    """The account a session token names, if it still exists and is enabled."""
+    account_id = decode_token(token)
+    if account_id is None:
+        return None
+    async with get_session_factory()() as session:
+        account = await accounts.get_account(session, account_id)
+    if account is None or account.disabled:
+        return None
+    return current_user_for(account)
 
 
 async def require_auth(
     authorization: str | None = Header(default=None, alias="Authorization"),
     cookie_token: str | None = Cookie(default=None, alias=COOKIE_NAME),
-) -> TokenPayload:
+) -> CurrentUser:
     """Require a valid session and install the current user.
 
     ``async def`` on purpose: a sync dependency runs in a worker thread under a
     copy of the request context, and the current-user ContextVar set there would
     be lost before the endpoint runs.
-
-    Learning-space scoping: phase 1 has the default learning space only, so no
-    per-request workspace is installed and data resolves to the account's default
-    space.
     """
-    token = _extract_token(authorization, cookie_token)
-    if not token:
+    user = await _signed_in_user(_extract_token(authorization, cookie_token))
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    payload = decode_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    _install_current_user(payload)
-    return payload
+    set_current_user(user)
+    return user
 
 
 async def optional_auth(
     authorization: str | None = Header(default=None, alias="Authorization"),
     cookie_token: str | None = Cookie(default=None, alias=COOKIE_NAME),
-) -> TokenPayload | None:
+) -> CurrentUser | None:
     """Install the current user when a valid session is present; otherwise carry on
     anonymously. For public endpoints whose answer depends on who is asking."""
-    token = _extract_token(authorization, cookie_token)
-    payload = decode_token(token) if token else None
-    if payload is not None:
-        _install_current_user(payload)
-    return payload
+    user = await _signed_in_user(_extract_token(authorization, cookie_token))
+    if user is not None:
+        set_current_user(user)
+    return user
 
 
-async def require_admin(payload: TokenPayload = Depends(require_auth)) -> TokenPayload:
-    """Require the administrator."""
-    if payload.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return payload
+async def require_owner(user: CurrentUser = Depends(require_auth)) -> CurrentUser:
+    """Require the owner of the group."""
+    if not user.is_owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Group owner only")
+    return user
 
 
 class _WsAuthFailed:
@@ -210,18 +227,18 @@ async def ws_require_auth(ws: WebSocket) -> _CtxToken | _WsAuthFailed:
     connection outlives the dependency-resolution task.
     """
     token = ws.query_params.get("token") or ws.cookies.get(COOKIE_NAME)
-    payload = decode_token(token) if token else None
-    if not payload:
+    user = await _signed_in_user(token)
+    if user is None:
         await ws.close(code=4001)
         return ws_auth_failed
-    return _install_current_user(payload)
+    return set_current_user(user)
 
 
 __all__ = [
     "COOKIE_NAME",
     "optional_auth",
-    "require_admin",
     "require_auth",
+    "require_owner",
     "reset_current_user",
     "router",
     "ws_auth_failed",
@@ -274,41 +291,77 @@ async def auth_status(
     cookie_token: str | None = Cookie(default=None, alias=COOKIE_NAME),
 ) -> AuthStatusResponse:
     """Whether the current request carries a valid session, and who it belongs to."""
-    token = _extract_token(authorization, cookie_token)
-    payload = decode_token(token) if token else None
-    if payload is None:
+    user = await _signed_in_user(_extract_token(authorization, cookie_token))
+    if user is None:
         return AuthStatusResponse(authenticated=False)
-    info = get_user_info(payload.username) or {}
     return AuthStatusResponse(
         authenticated=True,
-        user_id=payload.user_id,
-        username=payload.username,
-        role=payload.role,
-        is_admin=payload.role == "admin",
-        avatar=str(info.get("avatar") or ""),
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=user.role,
+        is_owner=user.is_owner,
+        avatar=user.avatar,
     )
 
 
-@router.post("/login")
-async def login(body: LoginRequest, response: Response) -> dict:
-    """Check the credentials and set the session cookie."""
-    _no_store(response)
-    result = authenticate(body.username, body.password)
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-        )
-    token = create_token(result.username, result.role, result.user_id)
-    response.set_cookie(value=token, max_age=_COOKIE_MAX_AGE, **_cookie_attrs())
-    logger.info("User '%s' logged in (role=%r)", result.username, result.role)
+def _start_session(response: Response, account: Account) -> dict:
+    response.set_cookie(
+        value=create_token(account.id),
+        max_age=get_auth_settings().session_ttl_hours * 3600,
+        **_cookie_attrs(),
+    )
     return {
         "ok": True,
-        "user_id": result.user_id,
-        "username": result.username,
-        "role": result.role,
-        "is_admin": result.role == "admin",
+        "user_id": str(account.id),
+        "email": account.email,
+        "role": account.role,
+        "is_owner": account.role == "owner",
     }
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    body: RegisterRequest,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Create a group with its owner, and sign the new owner in."""
+    _no_store(response)
+    taken = HTTPException(
+        status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists"
+    )
+    if await accounts.find_account_by_email(session, body.email) is not None:
+        raise taken
+    try:
+        account = await accounts.create_owner(
+            session, body.email, body.password, body.display_name
+        )
+        await session.commit()
+    except IntegrityError:
+        # Another registration took the email between the check and the insert.
+        await session.rollback()
+        raise taken from None
+    logger.info("Account %s registered a new group %s", account.id, account.group_id)
+    return _start_session(response, account)
+
+
+@router.post("/login")
+async def login(
+    body: LoginRequest,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Check the credentials and set the session cookie."""
+    _no_store(response)
+    account = await accounts.authenticate(session, body.email, body.password)
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+    logger.info("Account %s signed in (role=%s)", account.id, account.role)
+    return _start_session(response, account)
 
 
 @router.post("/logout")
@@ -326,6 +379,11 @@ _AVATAR_MAX_BYTES = 1 * 1024 * 1024
 _AVATAR_MEDIA_TYPES = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
 
 
+def _avatar_key(group_id: str, account_id: str) -> str:
+    """Storage key of an account's avatar; one object, replaced on each upload."""
+    return f"{group_id}/{account_id}/avatar"
+
+
 def _sniff_image(data: bytes) -> str | None:
     """Detect PNG, JPEG or WebP from the bytes. The filename and Content-Type come
     from the client and are not trusted; SVG is refused (stored XSS)."""
@@ -339,46 +397,32 @@ def _sniff_image(data: bytes) -> str | None:
 
 
 @router.get("/profile", response_model=UserInfo)
-async def get_profile(current: TokenPayload = Depends(require_auth)) -> UserInfo:
+async def get_profile(current: CurrentUser = Depends(require_auth)) -> UserInfo:
     """The current user's own account info."""
-    info = get_user_info(current.username)
-    if info is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return UserInfo(**{k: v for k, v in info.items() if k in UserInfo.model_fields})
+    return _user_info(current)
 
 
 @router.put("/profile")
 async def update_profile(
     body: UpdateProfileRequest,
-    current: TokenPayload = Depends(require_auth),
+    current: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Pick an icon avatar (``icon:<name>:<color>``) or reset to the default."""
-    if not set_avatar(current.username, body.avatar):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    # The marker no longer points at an uploaded image, so drop the file.
-    from masterly.multi_user.identity import delete_avatar_file
-
-    if current.user_id and _USER_ID_RE.match(current.user_id):
-        delete_avatar_file(current.user_id)
+    await accounts.set_avatar(session, uuid.UUID(current.id), body.avatar)
+    await session.commit()
+    await get_storage().delete(_avatar_key(current.group_id, current.id))
     return {"ok": True, "avatar": body.avatar}
 
 
 @router.put("/profile/avatar")
 async def upload_avatar(
     file: UploadFile = File(...),
-    current: TokenPayload = Depends(require_auth),
+    current: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Upload an avatar image. The client crops it; the server caps the size and
     checks the format from the bytes."""
-    if not current.user_id or not _USER_ID_RE.match(current.user_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot store an avatar for this account.",
-        )
-    info = get_user_info(current.username)
-    if info is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
     data = await file.read(_AVATAR_MAX_BYTES + 1)
     if len(data) > _AVATAR_MAX_BYTES:
         raise HTTPException(
@@ -392,55 +436,56 @@ async def upload_avatar(
             detail="Avatar must be a PNG, JPEG or WebP image.",
         )
 
-    from masterly.multi_user.identity import save_avatar_file
-
     # Bump the version in the marker so clients refetch the image.
-    previous = str(info.get("avatar") or "")
     version = 1
-    if previous.startswith("img:"):
+    if current.avatar.startswith("img:"):
         try:
-            version = int(previous.split(":", 1)[1]) + 1
+            version = int(current.avatar.split(":", 1)[1]) + 1
         except ValueError:
             version = 1
     marker = f"img:{version}"
 
-    save_avatar_file(current.user_id, data, ext)
-    if not set_avatar(current.username, marker):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    logger.info("User '%s' uploaded a new avatar (%s, %d bytes)", current.username, ext, len(data))
+    await get_storage().put(_avatar_key(current.group_id, current.id), data, _AVATAR_MEDIA_TYPES[ext])
+    await accounts.set_avatar(session, uuid.UUID(current.id), marker)
+    await session.commit()
+    logger.info("Account %s uploaded a new avatar (%s, %d bytes)", current.id, ext, len(data))
     return {"ok": True, "avatar": marker}
 
 
 @router.delete("/profile/avatar")
-async def remove_avatar(current: TokenPayload = Depends(require_auth)) -> dict:
+async def remove_avatar(
+    current: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     """Remove the uploaded avatar image and reset the marker."""
-    from masterly.multi_user.identity import delete_avatar_file
-
-    if current.user_id and _USER_ID_RE.match(current.user_id):
-        delete_avatar_file(current.user_id)
-    set_avatar(current.username, "")
+    await get_storage().delete(_avatar_key(current.group_id, current.id))
+    await accounts.set_avatar(session, uuid.UUID(current.id), "")
+    await session.commit()
     return {"ok": True, "avatar": ""}
 
 
 @router.get("/avatar/{user_id}")
 async def get_avatar_image(
     user_id: str,
-    _: TokenPayload = Depends(require_auth),
-) -> FileResponse:
-    """Serve a stored avatar image to any signed-in user."""
-    if not _USER_ID_RE.match(user_id):
+    current: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Serve the avatar image of an account in the caller's own group."""
+    try:
+        account = await accounts.get_account(session, uuid.UUID(user_id))
+    except ValueError:
+        account = None
+    if account is None or str(account.group_id) != current.group_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
 
-    from masterly.multi_user.identity import get_avatar_file
-
-    target = get_avatar_file(user_id)
-    if target is None:
+    data = await get_storage().get(_avatar_key(str(account.group_id), str(account.id)))
+    ext = _sniff_image(data) if data else None
+    if ext is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
 
-    media_type = _AVATAR_MEDIA_TYPES.get(target.suffix.lstrip("."), "application/octet-stream")
     headers = {
         "Cache-Control": "private, max-age=86400",
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": "inline",
     }
-    return FileResponse(path=str(target), media_type=media_type, headers=headers)
+    return Response(content=data, media_type=_AVATAR_MEDIA_TYPES[ext], headers=headers)

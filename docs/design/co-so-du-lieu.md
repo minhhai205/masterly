@@ -98,7 +98,7 @@ trình duyệt.
 | email | text, duy nhất | Dùng để đăng nhập |
 | password_hash | text | Băm bằng bcrypt |
 | display_name | text | |
-| avatar | text | Rỗng, `icon:<name>:<color>` hoặc khóa tệp ảnh |
+| avatar | text | Rỗng, `icon:<name>:<color>`, hoặc `img:<version>` khi đã tải ảnh lên (tăng mỗi lần tải để trình duyệt lấy ảnh mới) |
 | theme, language | text | Cài đặt giao diện |
 | disabled | bool | Khóa tài khoản |
 | created_at | timestamptz | Ngày tham gia |
@@ -278,10 +278,14 @@ xếp lịch ôn.
   triển khai. Khóa tệp giống nhau ở cả hai:
 
 ```text
-<group_id>/<account_id>/avatar/<version>.<ext>
+<group_id>/<account_id>/avatar
 <group_id>/<account_id>/documents/<document_id>.<ext>
 <group_id>/<account_id>/attachments/<file_id>.<ext>
 ```
+
+- Ảnh đại diện là một tệp duy nhất cho mỗi tài khoản, tải ảnh mới thì ghi đè; loại
+  ảnh (PNG, JPEG, WebP) xác định theo nội dung tệp, không theo tên hay loại trình
+  duyệt gửi lên.
 
 ## 5. Cấu hình triển khai
 
@@ -344,3 +348,20 @@ chức năng nào cần đổi bảng thì thêm migration mới và sửa bản
 | F10 Ôn tập theo lịch | `learning_paths`, `assessments` | |
 | F11 Theo dõi tiến độ lộ trình | `learning_paths` | `assessments` |
 | F14 Ghi chép trong lúc học | `notes` | |
+
+## 7. Chạy cơ sở dữ liệu khi phát triển
+
+```bash
+cp .env.example .env              # lần đầu
+docker compose up -d db           # PostgreSQL có pgvector, cổng 5432
+.venv/bin/alembic upgrade head    # tạo hoặc nâng cấu trúc bảng
+```
+
+- Mô hình bảng nằm ở `masterly/db/models.py`; migration ở
+  `masterly/db/migrations/versions/`. Thêm một thay đổi cấu trúc:
+  `alembic revision --autogenerate -m "<mô tả>"`, đọc và sửa bản nháp, rồi
+  `alembic upgrade head`. Không sửa migration đã merge vào `dev`.
+- Test cơ sở dữ liệu (`tests/db/`) tạo một cơ sở dữ liệu tạm cho mỗi lần chạy, nâng
+  lên bản mới nhất rồi xóa; không có PostgreSQL thì các test này được bỏ qua.
+- Trên AWS, `alembic upgrade head` chạy một lần ở bước triển khai, trước khi bật ứng
+  dụng.

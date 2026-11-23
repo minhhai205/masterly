@@ -590,17 +590,15 @@ class ModelCatalogService:
 
 
 def get_model_catalog_service() -> ModelCatalogService:
-    try:
-        from masterly.multi_user.context import get_current_user
-        from masterly.multi_user.paths import get_admin_path_service
+    """The one catalog every account uses, kept with the deployment's settings.
 
-        if not get_current_user().is_admin:
-            return ModelCatalogService.get_instance(
-                get_admin_path_service().get_settings_file("model_catalog")
-            )
-    except Exception:
-        pass
-    return ModelCatalogService.get_instance(get_path_service().get_settings_file("model_catalog"))
+    Moves into each group's row of the database with the per-group catalog.
+    """
+    from masterly.multi_user.paths import get_admin_path_service
+
+    return ModelCatalogService.get_instance(
+        get_admin_path_service().get_settings_file("model_catalog")
+    )
 
 
 __all__ = [

@@ -20,9 +20,7 @@ from masterly.services.embedding import client as embedding_client_module
 from masterly.services.embedding import config as embedding_config_module
 from masterly.services.llm import client as llm_client_module
 from masterly.services.llm import config as llm_config_module
-from tests.conftest import ADMIN_PASSWORD, ADMIN_USERNAME
-
-LEARNER = ("learner-f03", "learner-pass")
+from tests.conftest import _DB_UNAVAILABLE, new_learner, new_owner
 
 
 class _FakeEmbeddingAdapter:
@@ -184,7 +182,7 @@ def _reset_runtime_state():
 
 @pytest.fixture(autouse=True)
 def _as_admin(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(settings_router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(settings_router, "_require_owner", lambda: None)
 
 
 # --- Provider choices -------------------------------------------------------
@@ -249,7 +247,7 @@ def test_connection_targets_cover_llm_and_embedding_only() -> None:
 
 @pytest.mark.asyncio
 async def test_get_settings_never_returns_catalog_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
-    from masterly.multi_user.models import LOCAL_ADMIN_ID, CurrentUser
+    from masterly.multi_user.models import CurrentUser
     from masterly.multi_user.paths import admin_scope
 
     catalog = _catalog("secret")
@@ -260,7 +258,14 @@ async def test_get_settings_never_returns_catalog_secrets(monkeypatch: pytest.Mo
     monkeypatch.setattr(
         settings_router,
         "get_current_user",
-        lambda: CurrentUser(id=LOCAL_ADMIN_ID, username="admin", role="admin", scope=admin_scope()),
+        lambda: CurrentUser(
+            id="owner",
+            email="o@example.com",
+            display_name="o",
+            role="owner",
+            group_id="g",
+            scope=admin_scope(),
+        ),
     )
 
     response = await settings_router.get_settings()
@@ -596,39 +601,49 @@ async def test_codex_oauth_error_maps_to_sanitized_http_detail(
 @pytest.fixture(scope="module")
 def app():
     from masterly.api.main import app as fastapi_app
-    from masterly.services.auth import add_user
 
-    add_user(*LEARNER)
+    if _DB_UNAVAILABLE is not None:
+        pytest.skip("PostgreSQL is not reachable")
     return fastapi_app
 
 
+@pytest.fixture(scope="module")
+def owner(app):
+    return new_owner(password="owner-pass")
+
+
+@pytest.fixture(scope="module")
+def learner(owner):
+    return new_learner(owner.group_id, password="learner-pass")
+
+
 @contextlib.contextmanager
-def _signed_in(app, username: str, password: str):
+def _signed_in(app, account, password: str):
     with TestClient(app) as client:
-        resp = client.post("/api/auth/login", json={"username": username, "password": password})
+        resp = client.post("/api/auth/login", json={"email": account.email, "password": password})
         assert resp.status_code == 200
         yield client
 
 
 def test_model_settings_need_a_session(app, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.undo()  # real admin check
+    monkeypatch.undo()  # real owner check
     with TestClient(app) as client:
         assert client.get("/api/settings").status_code == 401
         assert client.get("/api/settings/draft").status_code == 401
 
 
 def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
-    app, monkeypatch: pytest.MonkeyPatch
+    app, learner, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.undo()
-    with _signed_in(app, *LEARNER) as client:
+    with _signed_in(app, learner, "learner-pass") as client:
         body = client.get("/api/settings").json()
         assert set(body) == {"ui"}
         assert client.get("/api/settings/draft").status_code == 403
         assert client.put("/api/settings/draft", json={"catalog": {}}).status_code == 403
         assert client.delete("/api/settings/draft").status_code == 403
         assert client.post("/api/settings/apply").status_code == 403
-        # The ChatGPT login is shared, so only the administrator manages it.
+        # The ChatGPT login is shared, so only the group owner manages it.
         assert client.get("/api/settings/providers/openai-codex/oauth/status").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/start").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/logout").status_code == 403
@@ -640,9 +655,11 @@ def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
         )
 
 
-def test_admin_reads_the_masked_catalog_and_stages_a_draft(app, monkeypatch: pytest.MonkeyPatch):
+def test_owner_reads_the_masked_catalog_and_stages_a_draft(
+    app, owner, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.undo()
-    with _signed_in(app, ADMIN_USERNAME, ADMIN_PASSWORD) as client:
+    with _signed_in(app, owner, "owner-pass") as client:
         body = client.get("/api/settings").json()
         assert set(body["catalog"]["services"]) == {"llm", "task", "embedding", "search"}
         assert {"providers", "connection_targets", "task_kinds"} <= set(body)

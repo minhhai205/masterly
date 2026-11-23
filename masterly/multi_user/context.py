@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .models import CurrentUser, normalize_role
+from .models import CurrentUser
 from .paths import local_admin_user, scope_for_user
+
+if TYPE_CHECKING:
+    from masterly.db.models import Account
 
 _current_user: ContextVar[CurrentUser | None] = ContextVar("masterly_current_user", default=None)
 
@@ -20,6 +23,7 @@ def reset_current_user(token: Token[CurrentUser | None]) -> None:
 
 
 def get_current_user() -> CurrentUser:
+    """The signed-in account, or the deployment itself outside a request."""
     return _current_user.get() or local_admin_user()
 
 
@@ -27,17 +31,17 @@ def get_current_user_or_none() -> CurrentUser | None:
     return _current_user.get()
 
 
-def user_from_token_payload(payload: Any | None) -> CurrentUser:
-    if payload is None:
-        return local_admin_user()
-    user_id = str(getattr(payload, "user_id", "") or "")
-    username = str(getattr(payload, "username", "") or "local")
-    role = normalize_role(str(getattr(payload, "role", "user") or "user"))
-    if not user_id:
-        user_id = "local-admin" if role == "admin" and username == "local" else username
+def current_user_for(account: Account) -> CurrentUser:
+    account_id = str(account.id)
     return CurrentUser(
-        id=user_id,
-        username=username,
-        role=role,  # type: ignore[arg-type]
-        scope=scope_for_user(user_id, is_admin=role == "admin"),
+        id=account_id,
+        email=account.email,
+        display_name=account.display_name,
+        role=account.role,  # type: ignore[arg-type]
+        group_id=str(account.group_id),
+        scope=scope_for_user(account_id),
+        avatar=account.avatar,
+        theme=account.theme,
+        language=account.language,
+        created_at=account.created_at.isoformat() if account.created_at else "",
     )

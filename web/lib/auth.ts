@@ -6,9 +6,10 @@ import { apiFetch, apiUrl } from "@/lib/api";
 export interface AuthStatus {
   authenticated: boolean;
   user_id?: string;
-  username?: string;
+  email?: string;
+  display_name?: string;
   role?: string;
-  is_admin?: boolean;
+  is_owner?: boolean;
   /** Avatar marker: "", "icon:<name>:<color>", or "img:<version>". */
   avatar?: string;
 }
@@ -58,16 +59,43 @@ export function fetchAuthStatus(): Promise<AuthStatus | null> {
   return authStatusRequest;
 }
 
+/** Create a group with its owner; the new owner is signed in on success. */
+export async function register(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(apiUrl("/api/auth/register"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, display_name: displayName }),
+      skipAuthRedirect: true,
+    });
+    if (res.ok) {
+      invalidateAuthStatusCache();
+      return { ok: true };
+    }
+    if (res.status === 422) {
+      return { ok: false, error: "Check the email and use a password of at least 8 characters" };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: extractDetail(data.detail) ?? "Registration failed" };
+  } catch {
+    return { ok: false, error: "Could not reach the server" };
+  }
+}
+
 /** Send the credentials to the backend. */
 export async function login(
-  username: string,
+  email: string,
   password: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
       // A 401 here means wrong credentials, not an expired session: show it in
       // the form instead of redirecting.
       skipAuthRedirect: true,

@@ -134,7 +134,7 @@ export function ProvidersWorkspace() {
   if (!catalogEditable)
     return (
       <p className="text-sm text-[var(--muted-foreground)]">
-        {t("Only administrators can manage providers.")}
+        {t("Only the group owner can manage providers.")}
       </p>
     );
   const savedIds = new Set(providerRegistry(catalog).map((p) => p.id));
