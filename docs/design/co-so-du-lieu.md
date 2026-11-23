@@ -37,12 +37,144 @@ erDiagram
     workspaces ||--o{ knowledge_bases : "chứa"
     workspaces ||--o{ notes : "chứa"
     sessions ||--o{ messages : "gồm"
+    messages |o--o{ messages : "tin nhắn trước"
     sessions ||--o{ turns : "gồm"
+    turns |o--o| messages : "tạo câu trả lời"
     turns ||--o{ turn_events : "phát"
-    learning_paths ||--o{ sessions : "học qua"
+    learning_paths |o--o{ sessions : "học qua"
     learning_paths ||--o{ assessments : "có"
+    sessions |o--o{ assessments : "chấm trong"
+    sessions |o--o{ notes : "ghi lúc"
     knowledge_bases ||--o{ documents : "gồm"
     documents ||--o{ chunks : "cắt thành"
+
+    groups {
+        uuid id PK
+        jsonb model_catalog
+        int catalog_revision
+        bytea codex_session
+        timestamptz created_at
+    }
+    accounts {
+        uuid id PK
+        uuid group_id FK
+        text role
+        text email UK
+        text password_hash
+        text display_name
+        text avatar
+        text theme
+        text language
+        bool disabled
+        timestamptz created_at
+    }
+    workspaces {
+        uuid id PK
+        uuid account_id FK
+        text name
+        bool is_default
+        timestamptz archived_at
+        timestamptz created_at
+    }
+    memories {
+        uuid account_id PK,FK
+        text slot PK
+        text content
+        timestamptz updated_at
+    }
+    sessions {
+        uuid id PK
+        uuid workspace_id FK
+        uuid path_id FK "có thể trống"
+        text title
+        jsonb summary
+        jsonb preferences
+        timestamptz archived_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    messages {
+        bigint id PK
+        uuid session_id FK
+        bigint parent_id FK "có thể trống"
+        text role
+        text content
+        jsonb extra
+        timestamptz created_at
+    }
+    turns {
+        uuid id PK
+        uuid session_id FK
+        bigint message_id FK "có thể trống"
+        text status
+        text error
+        timestamptz created_at
+        timestamptz finished_at
+    }
+    turn_events {
+        uuid turn_id PK,FK
+        int seq PK
+        text type
+        jsonb data
+        timestamptz created_at
+    }
+    learning_paths {
+        uuid id PK
+        uuid workspace_id FK
+        text goal
+        text status
+        jsonb state
+        int revision
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    assessments {
+        uuid id PK
+        uuid path_id FK
+        text knowledge_point_id
+        uuid session_id FK "có thể trống"
+        text kind
+        text result
+        jsonb question
+        jsonb detail
+        timestamptz created_at
+    }
+    knowledge_bases {
+        uuid id PK
+        uuid workspace_id FK
+        text name
+        text embedding_model
+        timestamptz created_at
+    }
+    documents {
+        uuid id PK
+        uuid knowledge_base_id FK
+        text folder
+        text file_name
+        text storage_key
+        bigint size_bytes
+        text status
+        text error
+        timestamptz created_at
+    }
+    chunks {
+        uuid id PK
+        uuid document_id FK
+        int ordinal
+        text content
+        jsonb locator
+        vector embedding
+        tsvector search_text
+    }
+    notes {
+        uuid id PK
+        uuid workspace_id FK
+        uuid session_id FK "có thể trống"
+        text title
+        text content
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 14 bảng, chia ba vùng:
