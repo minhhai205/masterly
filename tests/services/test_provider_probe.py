@@ -142,24 +142,15 @@ async def test_network_errors_do_not_leak_credentials(monkeypatch, error, status
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("connection", [False, True])
-async def test_route_resolves_draft_secrets_by_id_without_writes(monkeypatch, connection):
+async def test_route_resolves_saved_secrets_by_id_without_writes(monkeypatch, connection):
     from masterly.api.routers import model_settings as router
 
     entry = {"id": "saved", "api_key": "live-key", "extra_headers": {"X-Key": "live-header"}}
-    live = {"connections": [entry], "services": {"llm": {"profiles": [entry]}}}
-    draft = deepcopy(live)
-    for item in [draft["connections"][0], draft["services"]["llm"]["profiles"][0]]:
-        item["api_key"] = "draft-key"
-        item["extra_headers"]["X-Key"] = "draft-header"
-    original = deepcopy((live, draft))
+    live = {"connections": [entry], "services": {"llm": {"profiles": [deepcopy(entry)]}}}
+    original = deepcopy(live)
     monkeypatch.setattr(router, "_require_owner", lambda: None)
     monkeypatch.setattr(
         router, "get_model_catalog_service", lambda: SimpleNamespace(load=lambda: live)
-    )
-    monkeypatch.setattr(
-        router,
-        "get_settings_draft_service",
-        lambda: SimpleNamespace(load=lambda: {"catalog": draft}),
     )
     calls = []
 
@@ -176,12 +167,12 @@ async def test_route_resolves_draft_secrets_by_id_without_writes(monkeypatch, co
         profile_id=None if connection else "saved",
     )
     assert await router.test_provider_connection(payload) == {"status": "connected", "models": []}
-    assert calls[0][2] == "draft-key"
-    assert calls[0][4] == {"X-Key": "draft-header"}
+    assert calls[0][2] == "live-key"
+    assert calls[0][4] == {"X-Key": "live-header"}
     payload.api_key = "just-typed-key"
     await router.test_provider_connection(payload)
     assert calls[1][2] == "just-typed-key"
-    assert (live, draft) == original
+    assert live == original
 
 
 @pytest.mark.asyncio

@@ -64,7 +64,7 @@ def _task_choice(result, bucket, choice):
     raise ValueError("Choose a task model mode.")
 
 
-def merge_registry_edit(current, edit, *, stored_draft=None):
+def merge_registry_edit(current, edit):
     """Only the addressed entity changes. Models never submit credentials."""
     result = deepcopy(current)
     kind, deleting = edit["kind"], edit.get("delete", False)
@@ -219,6 +219,4 @@ def merge_registry_edit(current, edit, *, stored_draft=None):
             _select_remaining(bucket, service)
     else:
         raise ValueError("Unknown registry edit.")
-    if stored_draft:
-        result = restore_catalog_secrets(result, stored_draft)
     return restore_catalog_secrets(result, current)

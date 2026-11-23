@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, Menu } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import SettingsNav from './SettingsNav'
-import { SettingsToolbar } from './SettingsToolbar'
 import { SettingsLoadStatusBanner } from './SettingsLoadStatusBanner'
 import { SETTINGS_RETURN_KEY } from './SettingsReturnTracker'
 import {
@@ -20,10 +19,9 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
   const { t } = useTranslation()
   const pathname = usePathname()
   const router = useRouter()
-  const { hasUnsavedChanges, saveDraft, saving, applying, toast } = useSettings()
+  const { hasUnsavedChanges, applying, toast } = useSettings()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const [leaveFailed, setLeaveFailed] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const priorPath = useRef(pathname)
@@ -49,7 +47,7 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
   const returnButton = (
     <button
       type="button"
-      disabled={saving || applying}
+      disabled={applying}
       onClick={() => (hasUnsavedChanges ? setLeaving(true) : returnToApp())}
       className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-40"
     >
@@ -64,8 +62,7 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
         <div className="px-2.5 pb-1.5 pt-4">{returnButton}</div>
         <SettingsNav />
       </aside>
-      {/* Master–detail pages publish a wider content box; the save toolbar
-          below reads the same variable so the two stay aligned. */}
+      {/* Master–detail pages publish a wider content box. */}
       <main
         className="flex min-w-0 flex-1 flex-col overflow-hidden"
         style={
@@ -100,7 +97,14 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
             {children}
           </div>
         </div>
-        <SettingsToolbar />
+        {toast && (
+          <div
+            role="status"
+            className="shrink-0 border-t border-[color-mix(in_srgb,var(--border)_50%,transparent)] px-5 py-3 text-center text-xs text-[var(--muted-foreground)]"
+          >
+            {toast}
+          </div>
+        )}
       </main>
       <Modal
         isOpen={mobileOpen}
@@ -114,27 +118,17 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
       </Modal>
       <Modal
         isOpen={leaving}
-        onClose={() => {
-          if (!saving) setLeaving(false)
-        }}
-        title={t('Keep your changes?')}
+        onClose={() => setLeaving(false)}
+        title={t('Leave without saving?')}
         width="sm"
       >
         <div className="space-y-5 p-5">
-          {leaveFailed && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {toast}
-            </p>
-          )}
           <p className="text-sm leading-relaxed text-[var(--muted-foreground)]">
-            {t(
-              'Save a draft before leaving. You can return and apply it later; your current settings will keep working.'
-            )}
+            {t('Some changes on this page are not saved. Leaving now discards them.')}
           </p>
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              disabled={saving}
               onClick={() => setLeaving(false)}
               className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
             >
@@ -142,24 +136,12 @@ export default function SettingsMain({ children }: { children: React.ReactNode }
             </button>
             <button
               type="button"
-              disabled={saving}
-              onClick={async () => {
-                if (await saveDraft()) returnToApp()
-                else setLeaveFailed(true)
-              }}
-              className="rounded-lg bg-[var(--foreground)] px-3 py-2 text-sm text-[var(--background)] disabled:opacity-40"
+              onClick={returnToApp}
+              className="rounded-lg bg-[var(--foreground)] px-3 py-2 text-sm text-[var(--background)]"
             >
-              {t('Save draft and return')}
+              {t('Leave without saving')}
             </button>
           </div>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={returnToApp}
-            className="text-xs text-[var(--muted-foreground)] underline underline-offset-4"
-          >
-            {t('Leave without saving')}
-          </button>
         </div>
       </Modal>
     </div>

@@ -2,7 +2,6 @@ import SettingsMain from "@/components/settings/SettingsMain";
 import { SettingsAccessProvider } from "@/features/settings/navigation/SettingsAccessProvider";
 import {
   ModelCatalogProvider,
-  SettingsDraftProvider,
   SettingsProvider,
 } from "@/features/settings/store";
 
@@ -16,9 +15,7 @@ export default function SettingsLayout({
     <SettingsProvider>
       <SettingsAccessProvider>
         <ModelCatalogProvider>
-          <SettingsDraftProvider>
-            <SettingsMain>{children}</SettingsMain>
-          </SettingsDraftProvider>
+          <SettingsMain>{children}</SettingsMain>
         </ModelCatalogProvider>
       </SettingsAccessProvider>
     </SettingsProvider>

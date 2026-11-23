@@ -325,7 +325,7 @@ class ModelCatalogService:
 
         ``save`` mirrors connections as a side effect of persisting, so a
         connection-linked profile only becomes self-contained once applied.
-        A test run against an unapplied draft needs the same mirroring
+        A test run against edits not saved yet needs the same mirroring
         in-memory — a profile created by copying another and pointing it at
         the same ``connection_id`` (e.g. bringing a provider over from the
         LLM service) has no credentials of its own until this runs.
