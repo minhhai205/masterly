@@ -62,10 +62,27 @@ erDiagram
 | Cột | Kiểu | Ý nghĩa |
 |---|---|---|
 | id | uuid, PK | |
-| model_catalog | jsonb | Nhà cung cấp và mô hình của bốn dịch vụ (trả lời, việc nền, embedding, tìm kiếm); khóa API đã mã hóa |
-| catalog_draft | jsonb | Bản nháp chưa áp dụng của trang cấu hình |
+| model_catalog | jsonb | Cấu hình dịch vụ AI của nhóm (xem dưới bảng) |
+| catalog_revision | int | Tăng mỗi lần cấu hình đổi |
 | codex_session | bytea | Phiên đăng nhập ChatGPT, đã mã hóa |
 | created_at | timestamptz | |
+
+`model_catalog` gồm hai phần:
+
+- `connections`: các nhà cung cấp đã khai báo (loại, địa chỉ, khóa API). Mỗi nhà cung
+  cấp nhập một lần và dùng chung cho nhiều dịch vụ, ví dụ một khóa OpenAI vừa cho trả
+  lời vừa cho embedding.
+- `services`: bốn dịch vụ là trả lời (`llm`), việc nền (`task`), embedding và tìm
+  kiếm (`search`). Mỗi dịch vụ có danh sách cấu hình, mỗi cấu hình trỏ tới một nhà
+  cung cấp và chứa các mô hình; kèm cấu hình và mô hình đang dùng. Riêng `task` có
+  thêm mô hình chọn riêng cho từng việc nền.
+
+Mỗi thay đổi của chủ nhóm (lưu một nhà cung cấp, thêm mô hình, đổi mô hình đang dùng)
+có hiệu lực ngay, không qua bản nháp: backend đọc `model_catalog`, sửa đúng phần đó,
+ghi lại và tăng `catalog_revision`. Backend giữ bản cấu hình đã giải mã trong bộ nhớ
+theo từng nhóm và làm mới khi `catalog_revision` đổi. Khóa API được mã hóa từng giá trị
+trước khi ghi, chỉ giải mã trong backend lúc gọi nhà cung cấp, và không bao giờ gửi ra
+trình duyệt.
 
 `accounts`: mọi tài khoản, cả chủ nhóm và người học.
 
@@ -104,9 +121,20 @@ erDiagram
 | Cột | Kiểu | Ý nghĩa |
 |---|---|---|
 | account_id | uuid, PK, FK `accounts` | |
-| slot | text, PK | Phần bộ nhớ: `profile`, `preferences`, `recent`, tóm tắt theo trò chuyện, theo lộ trình |
+| slot | text, PK | Phần bộ nhớ (xem dưới bảng) |
 | content | text | Markdown; người học xem, sửa, xóa được |
 | updated_at | timestamptz | |
+
+Có hai loại phần bộ nhớ:
+
+- Hồ sơ chung, tổng hợp từ mọi nơi: `profile` (người học là ai), `preferences` (thích
+  được giải thích thế nào), `scope` (đã biết, đang học gì), `recent` (các buổi học gần
+  đây). AI đọc hồ sơ chung ở mỗi lượt trả lời.
+- Tóm tắt theo nơi phát sinh: `surface:chat`, `surface:kb`, `surface:notes`. Cập nhật
+  ở nền sau mỗi buổi học, rồi tổng hợp vào hồ sơ chung.
+
+Mỗi ý nhớ trong `content` là một gạch đầu dòng có mã riêng, để xóa hoặc sửa đúng ý đó,
+và chú thích nguồn (cuộc trò chuyện, ghi chép hay tài liệu đã sinh ra ý đó).
 
 ### 3.3. Trò chuyện
 
