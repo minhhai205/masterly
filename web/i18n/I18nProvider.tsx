@@ -55,7 +55,10 @@ export function I18nProvider({
     };
   }, [enabled, nextLang]);
 
-  if (!enabled || readyLanguage !== nextLang) {
+  // Hold the page back only until the first language is ready, so it never
+  // shows in the wrong language. A later switch keeps the page mounted:
+  // i18next re-renders the text in place, and nothing loses its state.
+  if (!enabled || readyLanguage === null) {
     return (
       <div
         aria-busy="true"
