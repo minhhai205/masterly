@@ -1,14 +1,12 @@
-"""Path resolution for admin-local and per-user workspaces.
+"""Path resolution for deployment-level and per-account files.
 
-Everything lives under ``<runtime-home>/data`` so a deployment has exactly
-one tree to mount and back up:
+Accounts themselves live in the database; this module only decides where an
+account's remaining files go, all under ``<runtime-home>/data``:
 
-* ``data/user``           — the admin workspace (admin scope root is ``data/``)
-* ``data/users/<uid>``    — one workspace per non-admin user
-* ``data/partners/<id>``  — partner (synthetic-user) workspaces
-* ``data/system``         — deployment state: accounts, grants, audit, and the
-  per-owner secrets of :func:`get_owner_secrets_dir`. Never mounted into the
-  sandbox runner — see ``docker-compose.yml``.
+* ``data/user``           — deployment-level files (shared settings)
+* ``data/users/<uid>``    — the files of one account, owner or learner
+* ``data/system``         — deployment state and the per-owner secrets of
+  :func:`get_owner_secrets_dir`.
 
 Deployments upgraded from the sibling ``multi-user/`` layout are migrated
 in place by :func:`migrate_legacy_multi_user_tree`.
@@ -28,7 +26,7 @@ from typing import Iterator
 from masterly.runtime.home import get_runtime_home
 from masterly.services.path_service import PathService
 
-from .models import LOCAL_ADMIN_ID, LOCAL_ADMIN_USERNAME, CurrentUser, UserScope
+from .models import LOCAL_ADMIN_ID, CurrentUser, UserScope
 
 logger = logging.getLogger(__name__)
 
@@ -91,23 +89,25 @@ def admin_scope() -> UserScope:
 
 
 def local_admin_user() -> CurrentUser:
+    """The deployment itself, for code that runs outside any request.
+
+    It owns the deployment-level data under ``data/user`` but holds no role that
+    passes an owner check: anything a person may do needs a signed-in account.
+    """
     return CurrentUser(
         id=LOCAL_ADMIN_ID,
-        username=LOCAL_ADMIN_USERNAME,
-        role="admin",
+        email="",
+        display_name="",
+        role="learner",
+        group_id="",
         scope=admin_scope(),
     )
 
 
-def scope_for_user(user_id: str, *, is_admin: bool) -> UserScope:
-    if is_admin:
-        return admin_scope()
+def scope_for_user(user_id: str) -> UserScope:
+    """Every account, owner or learner, keeps its files under ``data/users/<id>``."""
     migrate_legacy_multi_user_tree()
     return UserScope(kind="user", user_id=user_id, root=(USERS_ROOT / user_id).resolve())
-
-
-def ensure_user_workspace(user_id: str) -> Path:
-    return ensure_scope_workspace(scope_for_user(user_id, is_admin=False))
 
 
 def ensure_scope_workspace(scope: UserScope) -> Path:
@@ -127,7 +127,7 @@ def ensure_scope_workspace(scope: UserScope) -> Path:
 
 def ensure_system_dirs() -> None:
     migrate_legacy_multi_user_tree()
-    for child in ("auth", "grants", "audit", "indexes"):
+    for child in ("grants", "audit", "indexes"):
         (SYSTEM_ROOT / child).mkdir(parents=True, exist_ok=True)
     # Per-owner secrets (see ``get_owner_secrets_dir``). Declared here, and its
     # mode set once at startup, so the per-request path only has to create the
