@@ -19,6 +19,7 @@ os.environ["MASTERLY_HOME"] = str(_HOME)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["STORAGE_LOCAL_DIR"] = str(_HOME / "files")
 os.environ["AUTH_SECRET"] = "test-secret-" + uuid.uuid4().hex
+os.environ["ENCRYPTION_KEY"] = "dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktMDAwMDA="
 os.environ["DB_NAME"] = f"masterly_test_{uuid.uuid4().hex[:12]}"
 
 from masterly.db.config import get_database_settings  # noqa: E402

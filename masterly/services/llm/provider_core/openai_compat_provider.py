@@ -177,7 +177,6 @@ class OpenAICompatProvider(LLMProvider):
         spec: Any = None,
         provider_name: str | None = None,
         wire_api: str = "auto",
-        configure_env: bool = True,
     ):
         keys = api_key if isinstance(api_key, list) else [api_key]
         keys = [str(key).strip() for key in keys if str(key or "").strip()]
@@ -189,9 +188,6 @@ class OpenAICompatProvider(LLMProvider):
         self._spec = spec
         self._provider_name = provider_name
         self._wire_api = normalize_wire_api(wire_api)
-
-        if configure_env and primary_key and spec and spec.env_key:
-            self._setup_env(primary_key, api_base)
 
         effective_base = api_base or (spec.default_api_base if spec else None) or None
         self._effective_base = effective_base
@@ -247,23 +243,6 @@ class OpenAICompatProvider(LLMProvider):
                     raise
                 api_key = self._key_pool.next()
         raise RuntimeError("LLM key rotation exhausted")
-
-    def _setup_env(self, api_key: str, api_base: str | None) -> None:
-        import os
-
-        spec = self._spec
-        if not spec or not spec.env_key:
-            return
-        if spec.is_gateway:
-            os.environ[spec.env_key] = api_key
-        else:
-            os.environ.setdefault(spec.env_key, api_key)
-        effective_base = api_base or spec.default_api_base
-        for env_name, env_val in spec.env_extras:
-            resolved = env_val.replace("{api_key}", api_key).replace(
-                "{api_base}", effective_base or ""
-            )
-            os.environ.setdefault(env_name, resolved)
 
     # ------------------------------------------------------------------
     # Prompt caching

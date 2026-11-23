@@ -59,13 +59,12 @@ async def test_runtime_provider_reuses_identical_config(monkeypatch) -> None:
     assert provider_factory.runtime_provider_pool_size() == 1
 
 
-def test_isolated_provider_disables_environment_setup_and_skips_pool(monkeypatch) -> None:
+def test_isolated_provider_skips_pool(monkeypatch) -> None:
     captured: dict[str, Any] = {}
     provider = _FakeProvider()
 
-    def _build(config: LLMConfig, *, configure_env: bool = True) -> _FakeProvider:
+    def _build(config: LLMConfig) -> _FakeProvider:
         captured["config"] = config
-        captured["configure_env"] = configure_env
         return provider
 
     monkeypatch.setattr(provider_factory, "_build_runtime_provider", _build)
@@ -73,7 +72,6 @@ def test_isolated_provider_disables_environment_setup_and_skips_pool(monkeypatch
     result = provider_factory.build_isolated_provider(_config())
 
     assert result is provider
-    assert captured["configure_env"] is False
     assert provider_factory.runtime_provider_pool_size() == 0
 
 
