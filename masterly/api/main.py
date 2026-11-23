@@ -52,6 +52,9 @@ async def lifespan(app: FastAPI):
     app.state.ready = True
     yield
     app.state.ready = False
+    from masterly.db import dispose_engine
+
+    await dispose_engine()
     logger.info("Application shutdown")
 
 
