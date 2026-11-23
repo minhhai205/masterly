@@ -1,6 +1,6 @@
 """Encryption of stored credentials.
 
-Provider API keys in a group's model catalog (and later its ChatGPT session) are
+Provider API keys in a group's model catalog and its ChatGPT session are
 encrypted before they reach the database, with the deployment's
 ``ENCRYPTION_KEY``. Fernet: AES with an HMAC, so a tampered value fails to
 decrypt instead of decrypting to garbage.
@@ -63,4 +63,24 @@ def decrypt_text(value: str) -> str:
         ) from exc
 
 
-__all__ = ["ENCRYPTED_PREFIX", "EncryptionKeyError", "decrypt_text", "encrypt_text"]
+def encrypt_bytes(value: bytes) -> bytes:
+    return _fernet().encrypt(value)
+
+
+def decrypt_bytes(value: bytes) -> bytes:
+    try:
+        return _fernet().decrypt(value)
+    except InvalidToken as exc:
+        raise EncryptionKeyError(
+            "A stored credential does not decrypt with ENCRYPTION_KEY; was the key changed?"
+        ) from exc
+
+
+__all__ = [
+    "ENCRYPTED_PREFIX",
+    "EncryptionKeyError",
+    "decrypt_bytes",
+    "decrypt_text",
+    "encrypt_bytes",
+    "encrypt_text",
+]

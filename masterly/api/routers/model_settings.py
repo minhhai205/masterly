@@ -465,8 +465,8 @@ async def cancel_service_test(service: str, run_id: str):
 
 
 # --- ChatGPT (Codex) sign-in -------------------------------------------------
-# One login for the whole deployment: the administrator signs in, every account
-# runs on it (see ``services.codex_auth.service``).
+# One login per group: the owner signs in, every account of the group runs on it
+# (see ``services.codex_auth.service``).
 
 
 def _codex_http_exception(error: CodexAuthError) -> HTTPException:
@@ -496,7 +496,7 @@ async def get_openai_codex_oauth_status() -> dict[str, Any]:
 
 @router.post("/providers/openai-codex/oauth/complete")
 async def complete_openai_codex_oauth(payload: CodexOAuthCallbackPayload) -> dict[str, Any]:
-    """Finish a waiting login from a callback address the administrator pasted.
+    """Finish a waiting login from a callback address the owner pasted.
 
     The provider redirects the browser to a loopback listener on the server.
     When the browser runs on another machine that address fails to load while
