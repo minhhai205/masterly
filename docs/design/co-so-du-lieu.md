@@ -98,7 +98,7 @@ trình duyệt.
 | email | text, duy nhất | Dùng để đăng nhập |
 | password_hash | text | Băm bằng bcrypt |
 | display_name | text | |
-| avatar | text | Rỗng, `icon:<name>:<color>` hoặc khóa tệp ảnh |
+| avatar | text | Rỗng, `icon:<name>:<color>`, hoặc `img:<version>` khi đã tải ảnh lên (tăng mỗi lần tải để trình duyệt lấy ảnh mới) |
 | theme, language | text | Cài đặt giao diện |
 | disabled | bool | Khóa tài khoản |
 | created_at | timestamptz | Ngày tham gia |
@@ -278,10 +278,14 @@ xếp lịch ôn.
   triển khai. Khóa tệp giống nhau ở cả hai:
 
 ```text
-<group_id>/<account_id>/avatar/<version>.<ext>
+<group_id>/<account_id>/avatar
 <group_id>/<account_id>/documents/<document_id>.<ext>
 <group_id>/<account_id>/attachments/<file_id>.<ext>
 ```
+
+- Ảnh đại diện là một tệp duy nhất cho mỗi tài khoản, tải ảnh mới thì ghi đè; loại
+  ảnh (PNG, JPEG, WebP) xác định theo nội dung tệp, không theo tên hay loại trình
+  duyệt gửi lên.
 
 ## 5. Cấu hình triển khai
 
