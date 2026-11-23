@@ -27,7 +27,7 @@ from .contracts import (
     CodexModel,
     normalize_codex_reasoning_levels,
 )
-from .storage import CodexCredentialStore
+from .storage import BaseCredentialStore
 
 
 def parse_models_response(payload: Mapping[str, Any]) -> tuple[CodexModel, ...]:
@@ -128,7 +128,7 @@ def _summary_support(raw_model: Mapping[str, Any]) -> bool:
 class CodexModelCatalog:
     def __init__(
         self,
-        store: CodexCredentialStore,
+        store: BaseCredentialStore,
         *,
         http: httpx.AsyncClient,
         version_http: httpx.AsyncClient | None = None,
