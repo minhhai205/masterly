@@ -22,8 +22,10 @@ from masterly.services.config import (
 )
 from masterly.services.config.origins import normalize_origins
 from masterly.services.path_service import get_path_service
+from masterly.services.setup import ensure_agents_settings
 
 ensure_runtime_settings_files()
+ensure_agents_settings()
 export_runtime_settings_to_env(overwrite=True)
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -126,7 +128,7 @@ app.add_middleware(
 # Routers are imported only now: they read runtime settings at import time.
 from fastapi import Depends  # noqa: E402
 
-from masterly.api.routers import auth, settings  # noqa: E402
+from masterly.api.routers import auth, model_settings, settings  # noqa: E402
 
 # The auth router guards its own endpoints: status/login/logout are public.
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -136,6 +138,9 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 _auth = [Depends(auth.require_auth)]
 app.include_router(settings.public_router, prefix="/api/settings", tags=["settings"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"], dependencies=_auth)
+app.include_router(
+    model_settings.router, prefix="/api/settings", tags=["settings"], dependencies=_auth
+)
 
 
 @app.get("/health/live")

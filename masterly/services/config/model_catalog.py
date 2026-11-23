@@ -153,10 +153,6 @@ SERVICE_NAMES: tuple[str, ...] = (
     "task",
     "embedding",
     "search",
-    "tts",
-    "stt",
-    "imagegen",
-    "videogen",
 )
 
 # Services whose profiles a connection can supply credentials to. ``search``
@@ -166,15 +162,10 @@ CONNECTABLE_SERVICES: tuple[str, ...] = (
     "llm",
     "task",
     "embedding",
-    "tts",
-    "stt",
-    "imagegen",
-    "videogen",
 )
 
 # Where a connection's API base has to grow a path before a service's adapter
-# can post to it. Voice/generation adapters append their own path to an API
-# base; embedding adapters use the configured URL verbatim.
+# can post to it: embedding adapters use the configured URL verbatim.
 _CONNECTION_BASE_SUFFIX: dict[str, str] = {"embedding": "/embeddings"}
 
 # Credential fields a linked profile inherits from its connection. base_url is
@@ -192,9 +183,6 @@ LLM_SHAPED_SERVICES: tuple[str, ...] = ("llm", "task")
 # Per-model capability overrides a user may set. Absent means "let the
 # built-in tables decide"; only explicit booleans are kept.
 MODEL_CAPABILITY_KEYS: tuple[str, ...] = ("tools", "vision", "json_output", "reasoning")
-
-_DASHSCOPE_VOICE_BINDINGS = {"dashscope", "aliyun", "bailian"}
-
 
 def _normalize_model_capabilities(model: dict[str, Any]) -> bool:
     raw = model.get("capabilities")
@@ -271,7 +259,14 @@ class ModelCatalogService:
         if loaded:
             catalog = _default_catalog()
             catalog.update({k: v for k, v in loaded.items() if k != "services"})
-            catalog["services"].update(loaded.get("services", {}))
+            # Only the services Masterly configures; anything else is dropped.
+            catalog["services"].update(
+                {
+                    name: value
+                    for name, value in loaded.get("services", {}).items()
+                    if name in SERVICE_NAMES
+                }
+            )
             merged_defaults = catalog != loaded
             before = deepcopy(catalog)
             self._normalize(catalog)
@@ -502,27 +497,6 @@ class ModelCatalogService:
                         model.setdefault("id", f"{service_name}-model-{uuid4().hex[:8]}")
                         model.setdefault("name", model.get("model") or "Untitled Model")
                         model.setdefault("model", "")
-                        if service_name == "stt" and model["model"] == "paraformer-v2":
-                            from .provider_links import resolve_profile_provider
-
-                            # The provider can be overridden on either the profile
-                            # or the model. Use the binding the runtime will use.
-                            try:
-                                effective = resolve_profile_provider(
-                                    catalog, service_name, profile, model
-                                )
-                            except ValueError:
-                                effective = {}  # Leave a broken reference for readiness to report.
-                            if (
-                                str(effective.get("binding") or "").strip().lower()
-                                in _DASHSCOPE_VOICE_BINDINGS
-                            ):
-                                # The old default was a batch API model, but this
-                                # adapter always uses the real-time WebSocket.
-                                model["model"] = "paraformer-realtime-v2"
-                                if model["name"] == "paraformer-v2":
-                                    model["name"] = "paraformer-realtime-v2"
-                                changed = True
                         if service_name in LLM_SHAPED_SERVICES and _normalize_model_capabilities(
                             model
                         ):
@@ -536,21 +510,6 @@ class ModelCatalogService:
                             # dropdown. Empty when the model is not in any
                             # adapter's MODELS_INFO map.
                             model.setdefault("supported_dimensions", "")
-                        elif service_name == "tts":
-                            # Provider/model-specific free-form voice string
-                            # (e.g. "alloy", "autumn", "model:voice").
-                            model.setdefault("voice", "")
-                            model.setdefault("response_format", "")  # Resolve per provider/model.
-                        elif service_name == "imagegen":
-                            # Generation knobs; empty → provider default.
-                            model.setdefault("size", "")
-                            model.setdefault("quality", "")
-                            model.setdefault("style", "")
-                            model.setdefault("response_format", "")
-                        elif service_name == "videogen":
-                            model.setdefault("aspect_ratio", "")
-                            model.setdefault("duration", "")
-                            model.setdefault("resolution", "")
             selectable = [
                 p
                 for p in profiles

@@ -6,6 +6,13 @@
 
 export const LOGIN_PATH = "/login";
 export const COOKIE_NAME = "masterly_token";
+/** Where a ChatGPT (Codex) sign-in returns when the loopback port is forwarded here. */
+export const CODEX_CALLBACK_PATH = "/auth/callback";
+export const CODEX_CALLBACK_API_PATH = "/api/auth/openai-codex/callback";
+
+export function isCodexCallbackPath(pathname: string): boolean {
+  return pathname === CODEX_CALLBACK_PATH;
+}
 
 export function isBackendPath(pathname: string): boolean {
   return (

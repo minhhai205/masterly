@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveBackendApiBase } from "./lib/backend-runtime-config";
 import { prepareBackendForwardHeaders } from "./lib/backend-forward";
 import {
+  CODEX_CALLBACK_API_PATH,
   COOKIE_NAME,
   LOGIN_PATH,
   classifyToken,
   isAuthExempt,
   isBackendPath,
+  isCodexCallbackPath,
   isWebSocketPath,
 } from "./lib/proxy-policy";
 
@@ -33,6 +35,12 @@ function redirectToLogin(
 
 export function proxy(req: NextRequest): NextResponse {
   const { pathname, search } = req.nextUrl;
+
+  // A ChatGPT sign-in redirect arrives without a session; the backend matches
+  // it to the waiting login by its one-time state.
+  if (isCodexCallbackPath(pathname)) {
+    return NextResponse.rewrite(new URL(CODEX_CALLBACK_API_PATH + search, API_BASE_URL));
+  }
 
   if (isBackendPath(pathname)) {
     return NextResponse.rewrite(new URL(pathname + search, API_BASE_URL), {
