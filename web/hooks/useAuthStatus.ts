@@ -6,8 +6,8 @@ import { fetchAuthStatus } from "@/lib/auth";
 export interface AuthStatusState {
   /** Whether the current session is authenticated. */
   authenticated: boolean;
-  /** Whether the authenticated user is an admin. */
-  isAdmin: boolean;
+  /** Whether the authenticated user owns the group. */
+  isOwner: boolean;
   /** Stable account id for account-scoped browser state. */
   userId: string | null;
   /** False when the runtime status endpoint could not be reached. */
@@ -18,7 +18,7 @@ export interface AuthStatusState {
 
 const INITIAL: AuthStatusState = {
   authenticated: false,
-  isAdmin: false,
+  isOwner: false,
   userId: null,
   statusAvailable: false,
   loading: true,
@@ -28,7 +28,7 @@ const INITIAL: AuthStatusState = {
 function loadAuthStatus(): Promise<AuthStatusState> {
   return fetchAuthStatus().then((status) => ({
     authenticated: Boolean(status?.authenticated),
-    isAdmin: status?.role === "admin",
+    isOwner: Boolean(status?.is_owner),
     userId:
       typeof status?.user_id === "string" && status.user_id.trim()
         ? status.user_id

@@ -3,7 +3,7 @@ import type { AuthStatus } from "@/lib/auth";
 export interface SettingsAccess {
   /** False until the backend has resolved the signed-in account. */
   resolved: boolean;
-  /** Administrator-only pages (models and services) stay hidden for learners. */
+  /** Owner-only pages (models and services) stay hidden for learners. */
   hideAdminOnly: boolean;
 }
 
@@ -16,5 +16,5 @@ export const PENDING_SETTINGS_ACCESS: SettingsAccess = {
 export function settingsAccessFromAuthStatus(
   authStatus: AuthStatus | null,
 ): SettingsAccess {
-  return { resolved: true, hideAdminOnly: !authStatus?.is_admin };
+  return { resolved: true, hideAdminOnly: !authStatus?.is_owner };
 }

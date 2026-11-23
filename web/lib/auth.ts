@@ -6,9 +6,10 @@ import { apiFetch, apiUrl } from "@/lib/api";
 export interface AuthStatus {
   authenticated: boolean;
   user_id?: string;
-  username?: string;
+  email?: string;
+  display_name?: string;
   role?: string;
-  is_admin?: boolean;
+  is_owner?: boolean;
   /** Avatar marker: "", "icon:<name>:<color>", or "img:<version>". */
   avatar?: string;
 }
@@ -60,14 +61,14 @@ export function fetchAuthStatus(): Promise<AuthStatus | null> {
 
 /** Send the credentials to the backend. */
 export async function login(
-  username: string,
+  email: string,
   password: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
       // A 401 here means wrong credentials, not an expired session: show it in
       // the form instead of redirecting.
       skipAuthRedirect: true,

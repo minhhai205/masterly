@@ -3,10 +3,10 @@ import type { AccountRole } from "@/lib/account-role";
 
 export interface ProfileInfo {
   id: string;
-  username: string;
+  email: string;
+  display_name: string;
   role: AccountRole;
   created_at: string;
-  disabled?: boolean;
   /** Avatar marker: "", "icon:<name>:<color>", or "img:<version>". */
   avatar?: string;
 }

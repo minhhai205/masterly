@@ -28,7 +28,7 @@ def test_llm_provider_choices_expose_api_formats_and_legacy_status() -> None:
 async def test_model_capabilities_endpoint_reports_table_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings_router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(settings_router, "_require_owner", lambda: None)
 
     local = await settings_router.resolve_model_capabilities(
         settings_router.ModelCapabilitiesQuery(binding="ollama", model="llama3")

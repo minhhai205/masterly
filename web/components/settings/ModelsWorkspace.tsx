@@ -194,7 +194,7 @@ export function ModelsWorkspace({
   if (!catalogEditable)
     return (
       <p className="text-sm text-[var(--muted-foreground)]">
-        {t("Only administrators can manage models.")}
+        {t("Only the group owner can manage models.")}
       </p>
     );
   const filtered = rows.filter(

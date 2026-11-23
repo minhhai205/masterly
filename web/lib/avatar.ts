@@ -2,7 +2,7 @@
  * Pure avatar logic — marker parsing and the deterministic fallback.
  *
  * The marker format (persisted in the user record) is:
- *   ""                    — deterministic icon+color derived from the username
+ *   ""                    — deterministic icon+color derived from the display name
  *   "icon:<name>:<color>" — an explicitly picked icon and color (keys below)
  *   "img:<version>"       — an uploaded image served from /api/auth/avatar
  *
@@ -47,7 +47,7 @@ export const AVATAR_COLORS: Record<string, string> = {
 
 export const AVATAR_COLOR_NAMES = Object.keys(AVATAR_COLORS);
 
-// Cheap, stable FNV-1a hash (same as SessionAvatar) so a username always maps
+// Cheap, stable FNV-1a hash (same as SessionAvatar) so a name always maps
 // to the same fallback icon/color without anything persisted.
 function hashString(input: string): number {
   let h = 2166136261;
@@ -58,11 +58,11 @@ function hashString(input: string): number {
   return h >>> 0;
 }
 
-export function fallbackAvatarFor(username: string): {
+export function fallbackAvatarFor(name: string): {
   icon: string;
   color: string;
 } {
-  const hash = hashString(username || "user");
+  const hash = hashString(name || "user");
   return {
     icon: AVATAR_ICON_NAMES[hash % AVATAR_ICON_NAMES.length],
     // ">>>" not ">>": a signed shift of a hash >= 2^31 yields a negative

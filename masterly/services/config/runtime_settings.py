@@ -77,17 +77,6 @@ CHAT_ATTACHMENT_CHARS_RANGE = (10_000, 5_000_000)
 # deployment whose model or bandwidth cannot afford it.
 CHAT_PRIOR_IMAGE_REINJECT_RANGE = (0, 20)
 
-DEFAULT_AUTH_SETTINGS: dict[str, Any] = {
-    "version": 1,
-    # Sign-in is always on in Masterly; the flag is kept for settings-file compatibility.
-    "enabled": True,
-    "username": "admin",
-    "password_hash": "",
-    "token_expire_hours": 24,
-    "cookie_secure": False,
-    "private_login_hosts": [],
-}
-
 DEFAULT_INTEGRATIONS_SETTINGS: dict[str, Any] = {
     "version": 2,
     "pocketbase_url": "",
@@ -517,21 +506,6 @@ class RuntimeSettingsService:
         _atomic_write_json(self.path_for("system"), payload)
         return payload
 
-    def load_auth(self, *, include_process_overrides: bool = True) -> dict[str, Any]:
-        payload = self._load_or_create(
-            "auth",
-            DEFAULT_AUTH_SETTINGS,
-            self._normalize_auth,
-        )
-        if include_process_overrides:
-            payload = self._apply_auth_process_overrides(payload)
-        return payload
-
-    def save_auth(self, settings: dict[str, Any]) -> dict[str, Any]:
-        payload = self._normalize_auth({**DEFAULT_AUTH_SETTINGS, **settings})
-        _atomic_write_json(self.path_for("auth"), payload)
-        return payload
-
     def load_integrations(self, *, include_process_overrides: bool = True) -> dict[str, Any]:
         payload = self._load_or_create(
             "integrations",
@@ -688,13 +662,11 @@ class RuntimeSettingsService:
     def ensure_defaults(self) -> None:
         # Document-engine settings are created when the document store (F07) arrives.
         self.load_system(include_process_overrides=False)
-        self.load_auth(include_process_overrides=False)
         self.load_integrations(include_process_overrides=False)
 
     def render_environment(self) -> dict[str, str]:
         """Render non-model settings into process env names for subprocesses."""
         system = self.load_system()
-        auth = self.load_auth()
         integrations = self.load_integrations()
         return {
             "MASTERLY_VERSION_CHECK_ENABLED": _bool_env(system["version_check_enabled"]),
@@ -708,18 +680,10 @@ class RuntimeSettingsService:
             "DISABLE_SSL_VERIFY": _bool_env(system["disable_ssl_verify"]),
             "CHAT_ATTACHMENT_DIR": system["chat_attachment_dir"],
             "MASTERLY_SANDBOX_ALLOW_SUBPROCESS": _bool_env(system["sandbox_allow_subprocess"]),
-            "AUTH_ENABLED": _bool_env(auth["enabled"]),
-            "AUTH_USERNAME": auth["username"],
-            "AUTH_PASSWORD_HASH": auth["password_hash"],
-            "AUTH_TOKEN_EXPIRE_HOURS": str(auth["token_expire_hours"]),
-            "AUTH_COOKIE_SECURE": _bool_env(auth["cookie_secure"]),
-            "AUTH_PRIVATE_LOGIN_HOSTS": ",".join(auth["private_login_hosts"]),
-            "NEXT_PUBLIC_AUTH_ENABLED": _bool_env(auth["enabled"]),
             # Consumed server-side by the Next.js middleware (web/proxy.ts) at
             # request time — NOT inlined into the browser bundle. The proxy
-            # rewrites /api/* and /ws/* to MASTERLY_API_BASE_URL and uses
-            # MASTERLY_AUTH_ENABLED to gate the login redirect. The launcher and
-            # the Docker entrypoint both export these through render_environment,
+            # rewrites /api/* and /ws/* to MASTERLY_API_BASE_URL. The launcher and
+            # the Docker entrypoint both export it through render_environment,
             # so the two deployment paths stay in sync. MASTERLY_API_BASE_URL is
             # the address the frontend *server* uses to reach the backend; the
             # browser itself only ever talks to the frontend origin.
@@ -734,7 +698,6 @@ class RuntimeSettingsService:
                 or system["next_public_api_base_external"]
                 or f"http://127.0.0.1:{system['backend_port']}"
             ),
-            "MASTERLY_AUTH_ENABLED": _bool_env(auth["enabled"]),
             "POCKETBASE_URL": integrations["pocketbase_url"],
             "POCKETBASE_PORT": str(integrations["pocketbase_port"]),
             "POCKETBASE_EXTERNAL_URL": integrations["pocketbase_external_url"],
@@ -869,25 +832,6 @@ class RuntimeSettingsService:
         if value := self._process_env_value("CHAT_PRIOR_IMAGE_REINJECT_MAX"):
             payload["chat_prior_image_reinject_max"] = value
         return self._normalize_system(payload)
-
-    def _apply_auth_process_overrides(self, settings: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(settings)
-        if value := (
-            self._process_env_value("AUTH_ENABLED")
-            or self._process_env_value("NEXT_PUBLIC_AUTH_ENABLED")
-        ):
-            payload["enabled"] = value
-        if value := self._process_env_value("AUTH_USERNAME"):
-            payload["username"] = value
-        if value := self._process_env_value("AUTH_PASSWORD_HASH"):
-            payload["password_hash"] = value
-        if value := self._process_env_value("AUTH_TOKEN_EXPIRE_HOURS"):
-            payload["token_expire_hours"] = value
-        if value := self._process_env_value("AUTH_COOKIE_SECURE"):
-            payload["cookie_secure"] = value
-        if value := self._process_env_value("AUTH_PRIVATE_LOGIN_HOSTS"):
-            payload["private_login_hosts"] = value
-        return self._normalize_auth(payload)
 
     def _apply_integrations_process_overrides(self, settings: dict[str, Any]) -> dict[str, Any]:
         payload = dict(settings)
@@ -1288,17 +1232,6 @@ class RuntimeSettingsService:
             ),
         }
 
-    def _normalize_auth(self, settings: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "version": 1,
-            "enabled": _coerce_bool(settings.get("enabled"), False),
-            "username": _string(settings.get("username")) or "admin",
-            "password_hash": _string(settings.get("password_hash")),
-            "token_expire_hours": max(1, _coerce_int(settings.get("token_expire_hours"), 24)),
-            "cookie_secure": _coerce_bool(settings.get("cookie_secure"), False),
-            "private_login_hosts": _host_list(settings.get("private_login_hosts")),
-        }
-
     def _normalize_integrations(self, settings: dict[str, Any]) -> dict[str, Any]:
         raw_coordination = settings.get("turn_coordination")
         coordination = raw_coordination if isinstance(raw_coordination, dict) else {}
@@ -1445,10 +1378,6 @@ def get_ws_max_size() -> int:
 HTTP_KEEP_ALIVE_TIMEOUT = 300
 
 
-def load_auth_settings() -> dict[str, Any]:
-    return get_runtime_settings_service().load_auth()
-
-
 def load_integrations_settings() -> dict[str, Any]:
     return get_runtime_settings_service().load_integrations()
 
@@ -1485,7 +1414,6 @@ __all__ = [
     "CHAT_ATTACHMENT_CHARS_RANGE",
     "CHAT_ATTACHMENT_MAX_FILE_MB_RANGE",
     "CHAT_ATTACHMENT_MAX_TOTAL_MB_RANGE",
-    "DEFAULT_AUTH_SETTINGS",
     "DEFAULT_DOCUMENT_PARSING_SETTINGS",
     "DEFAULT_GRAPHRAG_SETTINGS",
     "DEFAULT_IMA_SETTINGS",
@@ -1517,7 +1445,6 @@ __all__ = [
     "get_chat_attachment_limits",
     "get_runtime_settings_service",
     "get_ws_max_size",
-    "load_auth_settings",
     "load_document_parsing_settings",
     "load_graphrag_settings",
     "load_integrations_settings",

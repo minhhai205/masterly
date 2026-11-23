@@ -181,7 +181,7 @@ export default function ProfilePage() {
 
   const descriptor = parseAvatarMarker(profile?.avatar);
   const hasImage = descriptor.kind === "image";
-  const fallback = fallbackAvatarFor(profile?.username ?? "");
+  const fallback = fallbackAvatarFor(profile?.display_name || profile?.email || "");
   const selectedIcon =
     descriptor.kind === "icon"
       ? descriptor.icon
@@ -194,7 +194,7 @@ export default function ProfilePage() {
       : hasImage
         ? null
         : fallback.color;
-  const isAdmin = profile?.role === "admin";
+  const isOwner = profile?.role === "owner";
   const lang: Language = i18n.language?.startsWith("en") ? "en" : "vi";
   const joinedDate = profile?.created_at ? new Date(profile.created_at) : null;
   const joined =
@@ -240,7 +240,7 @@ export default function ProfilePage() {
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
               <div className="flex items-center gap-5">
                 <UserAvatar
-                  username={profile.username}
+                  name={profile.display_name || profile.email}
                   userId={profile.id}
                   avatar={profile.avatar}
                   role={profile.role}
@@ -249,21 +249,24 @@ export default function ProfilePage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2.5">
                     <span className="truncate text-lg font-semibold text-[var(--foreground)]">
-                      {profile.username}
+                      {profile.display_name || profile.email}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        isAdmin
+                        isOwner
                           ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                           : "bg-[var(--muted)]/70 text-[var(--muted-foreground)]"
                       }`}
                     >
-                      {isAdmin && <ShieldCheck size={11} strokeWidth={2} />}
-                      {isAdmin ? t("Administrator") : t(accountRoleLabelKey(profile.role))}
+                      {isOwner && <ShieldCheck size={11} strokeWidth={2} />}
+                      {t(accountRoleLabelKey(profile.role))}
                     </span>
                   </div>
+                  <p className="mt-1 truncate text-sm text-[var(--muted-foreground)]">
+                    {profile.email}
+                  </p>
                   {joined && (
-                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                    <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
                       {t("Joined")}: {joined}
                     </p>
                   )}
