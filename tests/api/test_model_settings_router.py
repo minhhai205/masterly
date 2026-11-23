@@ -608,7 +608,7 @@ def test_learner_sees_only_interface_preferences_and_cannot_touch_models(
             client.post("/api/settings/apply/registry", json={"kind": "default"}).status_code
             == 403
         )
-        # The ChatGPT login is shared, so only the group owner manages it.
+        # The ChatGPT login belongs to the whole group, so only its owner manages it.
         assert client.get("/api/settings/providers/openai-codex/oauth/status").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/start").status_code == 403
         assert client.post("/api/settings/providers/openai-codex/oauth/logout").status_code == 403
