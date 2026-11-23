@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 import secrets
 import time
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
@@ -1177,13 +1177,22 @@ def _codex_secrets_root() -> Path:
     return owner_secrets_dir(LOCAL_ADMIN_ID)
 
 
-def _shared_model_catalog_service() -> ModelCatalogService:
-    """The shared catalog a sign-in publishes its managed profile into."""
-    from masterly.multi_user.paths import get_admin_path_service
+class _CurrentGroupCatalog:
+    """The catalog of whichever group is signed in when the service touches it.
 
-    return ModelCatalogService.get_instance(
-        get_admin_path_service().get_settings_file("model_catalog")
-    )
+    The sign-in service is built once, but each call runs for one group's owner,
+    so the managed profile has to land in that group's catalog.
+    """
+
+    def __getattr__(self, name: str) -> Any:
+        from masterly.services.config.model_catalog import get_model_catalog_service
+
+        return getattr(get_model_catalog_service(), name)
+
+
+def _shared_model_catalog_service() -> ModelCatalogService:
+    """The catalog a sign-in publishes its managed profile into."""
+    return cast(ModelCatalogService, _CurrentGroupCatalog())
 
 
 def get_codex_oauth_service() -> CodexOAuthService:

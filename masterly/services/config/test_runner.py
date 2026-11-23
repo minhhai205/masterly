@@ -461,7 +461,7 @@ class ConfigTestRunner:
             saved_catalog = self._persist_embedding_dimension(catalog, model, detected_dim)
             run.emit(
                 "catalog",
-                "Saved detected embedding dimension to model_catalog.json.",
+                "Saved the detected embedding dimension to the model catalog.",
                 catalog=saved_catalog,
             )
         else:

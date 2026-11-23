@@ -41,38 +41,48 @@ def _is_secret_field(name: str) -> bool:
     return any(hint in normalized for hint in _SECRET_FIELD_HINTS)
 
 
-def _redact_secret_value(value: Any) -> Any:
+def _map_secret_value(value: Any, transform: Callable[[str], str]) -> Any:
     if isinstance(value, str):
-        return CATALOG_SECRET_MASK if value else value
+        return transform(value) if value else value
     if isinstance(value, dict):
-        return {key: _redact_secret_value(item) for key, item in value.items()}
+        return {key: _map_secret_value(item, transform) for key, item in value.items()}
     if isinstance(value, list):
-        return [_redact_secret_value(item) for item in value]
+        return [_map_secret_value(item, transform) for item in value]
     return value
 
 
-def _redact_profile(profile: dict[str, Any]) -> None:
+def _map_profile_secrets(profile: dict[str, Any], transform: Callable[[str], str]) -> None:
     for key, value in list(profile.items()):
-        # Header values are credentials often enough that none of them should
-        # cross the API boundary. This also covers JSON-string header maps.
+        # Header values are credentials often enough that all of them count as
+        # secrets. This also covers JSON-string header maps.
         if key == "extra_headers" or _is_secret_field(key):
-            profile[key] = _redact_secret_value(value)
+            profile[key] = _map_secret_value(value, transform)
 
 
-def redact_catalog_secrets(catalog: dict[str, Any]) -> dict[str, Any]:
-    """Return an API-safe catalog without mutating stored configuration."""
+def map_catalog_secrets(
+    catalog: dict[str, Any], transform: Callable[[str], str]
+) -> dict[str, Any]:
+    """A copy of *catalog* with every non-empty secret string passed through *transform*.
 
-    redacted = deepcopy(catalog)
-    for connection in redacted.get("connections", []) or []:
+    The one definition of "secret" for masking, encrypting and decrypting:
+    credential-named fields and every extra header, on connections and profiles.
+    """
+    mapped = deepcopy(catalog)
+    for connection in mapped.get("connections", []) or []:
         if isinstance(connection, dict):
-            _redact_profile(connection)
-    for service in redacted.get("services", {}).values():
+            _map_profile_secrets(connection, transform)
+    for service in mapped.get("services", {}).values():
         if not isinstance(service, dict):
             continue
         for profile in service.get("profiles", []):
             if isinstance(profile, dict):
-                _redact_profile(profile)
-    return redacted
+                _map_profile_secrets(profile, transform)
+    return mapped
+
+
+def redact_catalog_secrets(catalog: dict[str, Any]) -> dict[str, Any]:
+    """Return an API-safe catalog without mutating stored configuration."""
+    return map_catalog_secrets(catalog, lambda _value: CATALOG_SECRET_MASK)
 
 
 def _restore_secret_value(proposed: Any, current: Any) -> Any:
@@ -292,23 +302,27 @@ class ModelCatalogService:
         with self._lock:
             normalized = deepcopy(catalog)
             self._normalize(normalized)
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            fd, temp_name = tempfile.mkstemp(
-                prefix=f".{self.path.name}.",
-                suffix=".tmp",
-                dir=self.path.parent,
-            )
-            temp_path = Path(temp_name)
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-                    json.dump(normalized, handle, indent=2, ensure_ascii=False)
-                    handle.write("\n")
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                os.replace(temp_path, self.path)
-            finally:
-                temp_path.unlink(missing_ok=True)
+            self._write(normalized)
             return normalized
+
+    def _write(self, normalized: dict[str, Any]) -> None:
+        """Persist an already-normalized catalog. The file store; a group overrides it."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            dir=self.path.parent,
+        )
+        temp_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                json.dump(normalized, handle, indent=2, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, self.path)
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     def update(self, mutator: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
         with self._lock:
@@ -318,7 +332,12 @@ class ModelCatalogService:
 
     def apply(self, catalog: dict[str, Any] | None = None) -> dict[str, Any]:
         current = self.save(catalog or self.load())
-        return {"catalog_path": str(self.path), "services": list(current.get("services", {}))}
+        return {"catalog_path": self.location, "services": list(current.get("services", {}))}
+
+    @property
+    def location(self) -> str:
+        """Where this catalog is kept, for logs and messages."""
+        return str(self.path)
 
     def resolve_connections(self, catalog: dict[str, Any]) -> dict[str, Any]:
         """Mirror linked connections' credentials into profiles, without saving.
@@ -590,10 +609,20 @@ class ModelCatalogService:
 
 
 def get_model_catalog_service() -> ModelCatalogService:
-    """The one catalog every account uses, kept with the deployment's settings.
+    """The catalog of the signed-in account's group.
 
-    Moves into each group's row of the database with the per-group catalog.
+    The owner and every learner of a group resolve the same one. Code running
+    with no account at all (tests, scripts) gets the deployment's local catalog
+    file instead, which no request ever reads.
     """
+    from masterly.multi_user.context import get_current_user
+
+    group_id = get_current_user().group_id
+    if group_id:
+        from .group_catalog import get_group_catalog_service
+
+        return get_group_catalog_service(group_id)
+
     from masterly.multi_user.paths import get_admin_path_service
 
     return ModelCatalogService.get_instance(
@@ -610,6 +639,7 @@ __all__ = [
     "SERVICE_NAMES",
     "ModelCatalogService",
     "get_model_catalog_service",
+    "map_catalog_secrets",
     "redact_catalog_secrets",
     "restore_catalog_secrets",
 ]

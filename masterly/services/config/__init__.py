@@ -18,6 +18,7 @@ from .model_catalog import (
     CATALOG_SECRET_MASK,
     ModelCatalogService,
     get_model_catalog_service,
+    map_catalog_secrets,
     redact_catalog_secrets,
     restore_catalog_secrets,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "ModelCatalogService",
     "get_model_catalog_service",
     "CATALOG_SECRET_MASK",
+    "map_catalog_secrets",
     "redact_catalog_secrets",
     "restore_catalog_secrets",
     "ConfigTestRunner",

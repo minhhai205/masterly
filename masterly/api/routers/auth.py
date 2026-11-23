@@ -40,6 +40,7 @@ from masterly.services import accounts
 from masterly.services.auth import create_token, decode_token, get_auth_settings
 from masterly.services.codex_auth.contracts import CodexAuthError
 from masterly.services.codex_auth.service import deliver_codex_oauth_callback
+from masterly.services.config.group_catalog import refresh_group_catalog
 from masterly.storage import get_storage
 
 logger = logging.getLogger(__name__)
@@ -167,8 +168,11 @@ async def _signed_in_user(token: str | None) -> CurrentUser | None:
         return None
     async with get_session_factory()() as session:
         account = await accounts.get_account(session, account_id)
-    if account is None or account.disabled:
-        return None
+        if account is None or account.disabled:
+            return None
+        # Every request of a group runs on that group's catalog; pick up a
+        # change saved by another process before anything resolves a model.
+        await refresh_group_catalog(session, str(account.group_id))
     return current_user_for(account)
 
 
