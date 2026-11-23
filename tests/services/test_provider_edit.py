@@ -145,7 +145,7 @@ async def test_provider_api_preserves_other_saved_drafts_and_restores_draft_secr
     parked["services"]["llm"]["profiles"][0]["api_key"] = "test-draft-key"
     parked["services"]["embedding"]["profiles"][0]["models"][0]["model"] = "unsaved-embedding"
     drafts.save({"catalog": parked, "extensions": {"appearance": {"preserved": True}}})
-    monkeypatch.setattr(router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(router, "_require_owner", lambda: None)
     monkeypatch.setattr(router, "get_model_catalog_service", lambda: store)
     monkeypatch.setattr(router, "get_settings_draft_service", lambda: drafts)
     monkeypatch.setattr(router, "_runtime_catalog_write", contextlib.nullcontext)
@@ -180,7 +180,7 @@ async def test_model_probe_uses_draft_key_without_saving_or_changing_default(tmp
     parked["services"]["task"]["profiles"][0]["api_key"] = "test-new-task-key"
     drafts.save({"catalog": parked})
     received = []
-    monkeypatch.setattr(router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(router, "_require_owner", lambda: None)
     monkeypatch.setattr(router, "get_model_catalog_service", lambda: store)
     monkeypatch.setattr(router, "get_settings_draft_service", lambda: drafts)
     monkeypatch.setattr(
@@ -210,7 +210,7 @@ async def test_task_choice_rejects_missing_reference_without_writing(tmp_path, m
 
     store, current = legacy(tmp_path)
     drafts = SettingsDraftService(tmp_path / "draft.json")
-    monkeypatch.setattr(router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(router, "_require_owner", lambda: None)
     monkeypatch.setattr(router, "get_model_catalog_service", lambda: store)
     monkeypatch.setattr(router, "get_settings_draft_service", lambda: drafts)
     task = deepcopy(current["services"]["task"])

@@ -56,7 +56,15 @@ def test_every_account_shares_the_administrator_codex_login(
 
     as_admin = service_module._codex_secrets_root()
     scope = UserScope(kind="user", user_id="u_ada", root=admin_root / "users" / "u_ada")
-    token = set_current_user(CurrentUser(id="u_ada", username="ada", role="user", scope=scope))
+    learner = CurrentUser(
+        id="u_ada",
+        email="ada@example.com",
+        display_name="ada",
+        role="learner",
+        group_id="g",
+        scope=scope,
+    )
+    token = set_current_user(learner)
     try:
         as_learner = service_module._codex_secrets_root()
     finally:

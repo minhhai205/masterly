@@ -6,12 +6,13 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from masterly.services.auth import AuthSettings
+
 
 def test_logout_sets_secure_when_cookie_secure_enabled(monkeypatch) -> None:
     from masterly.api.routers import auth as auth_router
 
-    monkeypatch.setattr(auth_router, "_SECURE", True)
-    monkeypatch.setattr(auth_router, "_SAMESITE", "none")
+    monkeypatch.setattr(auth_router, "get_auth_settings", lambda: AuthSettings(cookie_secure=True))
     app = FastAPI()
     app.add_api_route("/logout", auth_router.logout, methods=["POST"])
 
@@ -28,8 +29,7 @@ def test_logout_sets_secure_when_cookie_secure_enabled(monkeypatch) -> None:
 def test_logout_omits_secure_when_cookie_secure_disabled(monkeypatch) -> None:
     from masterly.api.routers import auth as auth_router
 
-    monkeypatch.setattr(auth_router, "_SECURE", False)
-    monkeypatch.setattr(auth_router, "_SAMESITE", "lax")
+    monkeypatch.setattr(auth_router, "get_auth_settings", lambda: AuthSettings(cookie_secure=False))
     app = FastAPI()
     app.add_api_route("/logout", auth_router.logout, methods=["POST"])
 

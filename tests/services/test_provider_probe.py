@@ -152,7 +152,7 @@ async def test_route_resolves_draft_secrets_by_id_without_writes(monkeypatch, co
         item["api_key"] = "draft-key"
         item["extra_headers"]["X-Key"] = "draft-header"
     original = deepcopy((live, draft))
-    monkeypatch.setattr(router, "_require_settings_admin", lambda: None)
+    monkeypatch.setattr(router, "_require_owner", lambda: None)
     monkeypatch.setattr(
         router, "get_model_catalog_service", lambda: SimpleNamespace(load=lambda: live)
     )
@@ -185,7 +185,7 @@ async def test_route_resolves_draft_secrets_by_id_without_writes(monkeypatch, co
 
 
 @pytest.mark.asyncio
-async def test_probe_keeps_admin_boundary(monkeypatch):
+async def test_probe_keeps_owner_boundary(monkeypatch):
     from fastapi import HTTPException
 
     from masterly.api.routers import model_settings as router
@@ -193,7 +193,7 @@ async def test_probe_keeps_admin_boundary(monkeypatch):
     def denied():
         raise HTTPException(status_code=403)
 
-    monkeypatch.setattr(router, "_require_settings_admin", denied)
+    monkeypatch.setattr(router, "_require_owner", denied)
     with pytest.raises(HTTPException) as exc:
         await router.test_provider_connection(router.ProviderProbePayload())
     assert exc.value.status_code == 403
