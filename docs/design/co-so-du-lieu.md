@@ -231,7 +231,7 @@ xếp lịch ôn.
 | Cột | Kiểu | Ý nghĩa |
 |---|---|---|
 | id | uuid, PK | |
-| kb_id | uuid, FK `knowledge_bases` | |
+| knowledge_base_id | uuid, FK `knowledge_bases` | Kho tài liệu chứa tài liệu này |
 | folder | text | Đường dẫn thư mục trong kho, ví dụ `Chương 1/Bài đọc` |
 | file_name | text | |
 | storage_key | text | Khóa tệp gốc trên S3 (hoặc thư mục) |
