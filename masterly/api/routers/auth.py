@@ -1,7 +1,8 @@
 """Sign-in, session and own-profile endpoints, plus the auth guards other routers use.
 
-Sessions are JWTs carried in an httpOnly cookie (or an ``Authorization: Bearer``
-header) that name an account. Every guarded request loads that account from the
+Anyone may register: registering creates a group and its owner. Sessions are
+JWTs carried in an httpOnly cookie (or an ``Authorization: Bearer`` header) that
+name an account. Every guarded request loads that account from the
 database and installs it as the current user; a disabled or deleted account is
 treated as signed out.
 """
@@ -27,10 +28,12 @@ from fastapi import (
     status,
 )
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from masterly.db import get_session, get_session_factory
+from masterly.db.models import Account
 from masterly.multi_user.context import current_user_for, reset_current_user, set_current_user
 from masterly.multi_user.models import CurrentUser
 from masterly.services import accounts
@@ -73,6 +76,20 @@ def _no_store(response: Response) -> None:
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    display_name: str = Field(default="", max_length=80)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        # bcrypt reads at most 72 bytes; refuse rather than silently truncate.
+        if len(v.encode()) > 72:
+            raise ValueError("Password must be at most 72 bytes")
+        return v
 
 
 class AuthStatusResponse(BaseModel):
@@ -288,6 +305,47 @@ async def auth_status(
     )
 
 
+def _start_session(response: Response, account: Account) -> dict:
+    response.set_cookie(
+        value=create_token(account.id),
+        max_age=get_auth_settings().session_ttl_hours * 3600,
+        **_cookie_attrs(),
+    )
+    return {
+        "ok": True,
+        "user_id": str(account.id),
+        "email": account.email,
+        "role": account.role,
+        "is_owner": account.role == "owner",
+    }
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    body: RegisterRequest,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Create a group with its owner, and sign the new owner in."""
+    _no_store(response)
+    taken = HTTPException(
+        status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists"
+    )
+    if await accounts.find_account_by_email(session, body.email) is not None:
+        raise taken
+    try:
+        account = await accounts.create_owner(
+            session, body.email, body.password, body.display_name
+        )
+        await session.commit()
+    except IntegrityError:
+        # Another registration took the email between the check and the insert.
+        await session.rollback()
+        raise taken from None
+    logger.info("Account %s registered a new group %s", account.id, account.group_id)
+    return _start_session(response, account)
+
+
 @router.post("/login")
 async def login(
     body: LoginRequest,
@@ -302,19 +360,8 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    response.set_cookie(
-        value=create_token(account.id),
-        max_age=get_auth_settings().session_ttl_hours * 3600,
-        **_cookie_attrs(),
-    )
     logger.info("Account %s signed in (role=%s)", account.id, account.role)
-    return {
-        "ok": True,
-        "user_id": str(account.id),
-        "email": account.email,
-        "role": account.role,
-        "is_owner": account.role == "owner",
-    }
+    return _start_session(response, account)
 
 
 @router.post("/logout")
