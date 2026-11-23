@@ -68,15 +68,16 @@ export {
   fallbackAvatarFor,
 };
 
-const ADMIN_RING_COLOR = "#e0a83c";
+const OWNER_RING_COLOR = "#e0a83c";
 
 interface UserAvatarProps {
-  username: string;
+  /** Shown as the title; also seeds the fallback icon and color. */
+  name: string;
   /** Needed to resolve "img:" markers to an image URL. */
   userId?: string;
   /** Avatar marker; empty/undefined renders the deterministic fallback. */
   avatar?: string;
-  /** Admins get the amber ring (and a shield badge at size >= 40). */
+  /** Group owners get the amber ring (and a shield badge at size >= 40). */
   role?: string;
   size?: number;
   className?: string;
@@ -85,7 +86,7 @@ interface UserAvatarProps {
 }
 
 export function UserAvatar({
-  username,
+  name,
   userId,
   avatar = "",
   role,
@@ -105,8 +106,8 @@ export function UserAvatar({
     setImageBroken(false);
   }
 
-  const isAdmin = role === "admin";
-  const showBadge = isAdmin && size >= 40;
+  const isOwner = role === "owner";
+  const showBadge = isOwner && size >= 40;
   const descriptor = parseAvatarMarker(avatar);
   const isImage =
     descriptor.kind === "image" && Boolean(userId) && !imageBroken;
@@ -115,7 +116,7 @@ export function UserAvatar({
   // client, or a hand-set marker). Validate against the known sets and fall
   // back to the deterministic avatar so it never renders blank
   // (AVATAR_COLORS[unknown] would be undefined -> an invisible avatar).
-  const fallback = fallbackAvatarFor(username);
+  const fallback = fallbackAvatarFor(name);
   let iconName: string;
   let colorName: string;
   if (descriptor.kind === "icon") {
@@ -128,20 +129,20 @@ export function UserAvatar({
     colorName = fallback.color;
   }
 
-  const ringStyle = isAdmin
+  const ringStyle = isOwner
     ? {
-        outline: `${Math.max(1.5, size / 18)}px solid ${ADMIN_RING_COLOR}`,
+        outline: `${Math.max(1.5, size / 18)}px solid ${OWNER_RING_COLOR}`,
         outlineOffset: `${Math.max(1, size / 28)}px`,
       }
     : undefined;
-  const adminLabel = t("Administrator");
+  const ownerLabel = t("Group owner");
 
   return (
     <span
       className={`relative inline-flex shrink-0 ${className ?? ""}`}
       style={{ width: size, height: size }}
-      title={suppressTitle ? undefined : isAdmin ? `${username} — ${adminLabel}` : username}
-      aria-label={isAdmin ? `${username} (${adminLabel})` : username}
+      title={suppressTitle ? undefined : isOwner ? `${name} — ${ownerLabel}` : name}
+      aria-label={isOwner ? `${name} (${ownerLabel})` : name}
     >
       {isImage ? (
         /* Dynamic backend URL with cookie auth; next/image cannot optimize it. */

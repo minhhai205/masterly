@@ -23,12 +23,13 @@ export function ProfileLink({ collapsed = false }: ProfileLinkProps) {
     });
   }, []);
 
-  if (!status?.username) return null;
+  const name = status?.display_name || status?.email;
+  if (!name) return null;
 
   const active = pathname.startsWith("/profile");
   const avatar = (
     <UserAvatar
-      username={status.username}
+      name={name}
       userId={status.user_id}
       avatar={status.avatar}
       role={status.role}
@@ -39,7 +40,7 @@ export function ProfileLink({ collapsed = false }: ProfileLinkProps) {
 
   if (collapsed) {
     return (
-      <Tooltip label={`${t("My profile")} — ${status.username}`} side="right">
+      <Tooltip label={`${t("My profile")} — ${name}`} side="right">
         <Link
           href="/profile"
           className={`rounded-lg p-2 transition-colors
@@ -68,7 +69,7 @@ export function ProfileLink({ collapsed = false }: ProfileLinkProps) {
           }`}
       >
         {avatar}
-        <span className="truncate">{status.username}</span>
+        <span className="truncate">{name}</span>
       </Link>
     </Tooltip>
   );
