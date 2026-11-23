@@ -326,51 +326,6 @@ def set_avatar(username: str, avatar: str) -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
-# Avatar image files — stored next to the user store, keyed by user id
-# ---------------------------------------------------------------------------
-
-# Extensions are derived from server-side content sniffing, never from the
-# uploaded filename, so this list is also the full set of files we may serve.
-AVATAR_EXTENSIONS = ("png", "jpg", "webp")
-
-
-def _avatar_dir() -> Path:
-    # Resolved lazily so tests that monkeypatch AUTH_DIR keep avatars isolated.
-    return AUTH_DIR / "avatars"
-
-
-def get_avatar_file(user_id: str) -> Path | None:
-    """Return the stored avatar image for ``user_id``, or None."""
-    for ext in AVATAR_EXTENSIONS:
-        candidate = _avatar_dir() / f"{user_id}.{ext}"
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def save_avatar_file(user_id: str, data: bytes, ext: str) -> Path:
-    """Atomically persist an avatar image, replacing any previous one."""
-    if ext not in AVATAR_EXTENSIONS:
-        raise ValueError(f"Unsupported avatar extension: {ext!r}")
-    directory = _avatar_dir()
-    directory.mkdir(parents=True, exist_ok=True)
-    target = directory / f"{user_id}.{ext}"
-    tmp = directory / f"{user_id}.{ext}.tmp"
-    tmp.write_bytes(data)
-    tmp.replace(target)
-    # A re-upload may change the extension; drop stale siblings.
-    for other in AVATAR_EXTENSIONS:
-        if other != ext:
-            (directory / f"{user_id}.{other}").unlink(missing_ok=True)
-    return target
-
-
-def delete_avatar_file(user_id: str) -> None:
-    for ext in AVATAR_EXTENSIONS:
-        (_avatar_dir() / f"{user_id}.{ext}").unlink(missing_ok=True)
-
-
 def set_role(username: str, role: Role) -> bool:
     if role not in VALID_ROLES:
         raise ValueError(f"role must be one of {sorted(VALID_ROLES)}")

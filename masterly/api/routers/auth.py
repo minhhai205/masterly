@@ -22,7 +22,7 @@ from fastapi import (
     WebSocket,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, field_validator
 
 from masterly.multi_user.context import (
@@ -42,6 +42,7 @@ from masterly.services.auth import (
 from masterly.services.codex_auth.contracts import CodexAuthError
 from masterly.services.codex_auth.service import deliver_codex_oauth_callback
 from masterly.services.config import load_auth_settings
+from masterly.storage import get_storage
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +327,11 @@ _AVATAR_MAX_BYTES = 1 * 1024 * 1024
 _AVATAR_MEDIA_TYPES = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
 
 
+def _avatar_key(user_id: str) -> str:
+    """Storage key of an account's avatar; one object, replaced on each upload."""
+    return f"{user_id}/avatar"
+
+
 def _sniff_image(data: bytes) -> str | None:
     """Detect PNG, JPEG or WebP from the bytes. The filename and Content-Type come
     from the client and are not trusted; SVG is refused (stored XSS)."""
@@ -356,10 +362,8 @@ async def update_profile(
     if not set_avatar(current.username, body.avatar):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # The marker no longer points at an uploaded image, so drop the file.
-    from masterly.multi_user.identity import delete_avatar_file
-
     if current.user_id and _USER_ID_RE.match(current.user_id):
-        delete_avatar_file(current.user_id)
+        await get_storage().delete(_avatar_key(current.user_id))
     return {"ok": True, "avatar": body.avatar}
 
 
@@ -392,8 +396,6 @@ async def upload_avatar(
             detail="Avatar must be a PNG, JPEG or WebP image.",
         )
 
-    from masterly.multi_user.identity import save_avatar_file
-
     # Bump the version in the marker so clients refetch the image.
     previous = str(info.get("avatar") or "")
     version = 1
@@ -404,7 +406,7 @@ async def upload_avatar(
             version = 1
     marker = f"img:{version}"
 
-    save_avatar_file(current.user_id, data, ext)
+    await get_storage().put(_avatar_key(current.user_id), data, _AVATAR_MEDIA_TYPES[ext])
     if not set_avatar(current.username, marker):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     logger.info("User '%s' uploaded a new avatar (%s, %d bytes)", current.username, ext, len(data))
@@ -414,10 +416,8 @@ async def upload_avatar(
 @router.delete("/profile/avatar")
 async def remove_avatar(current: TokenPayload = Depends(require_auth)) -> dict:
     """Remove the uploaded avatar image and reset the marker."""
-    from masterly.multi_user.identity import delete_avatar_file
-
     if current.user_id and _USER_ID_RE.match(current.user_id):
-        delete_avatar_file(current.user_id)
+        await get_storage().delete(_avatar_key(current.user_id))
     set_avatar(current.username, "")
     return {"ok": True, "avatar": ""}
 
@@ -426,21 +426,20 @@ async def remove_avatar(current: TokenPayload = Depends(require_auth)) -> dict:
 async def get_avatar_image(
     user_id: str,
     _: TokenPayload = Depends(require_auth),
-) -> FileResponse:
+) -> Response:
     """Serve a stored avatar image to any signed-in user."""
     if not _USER_ID_RE.match(user_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
 
-    from masterly.multi_user.identity import get_avatar_file
-
-    target = get_avatar_file(user_id)
-    if target is None:
+    data = await get_storage().get(_avatar_key(user_id))
+    ext = _sniff_image(data) if data else None
+    if ext is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
 
-    media_type = _AVATAR_MEDIA_TYPES.get(target.suffix.lstrip("."), "application/octet-stream")
+    media_type = _AVATAR_MEDIA_TYPES[ext]
     headers = {
         "Cache-Control": "private, max-age=86400",
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": "inline",
     }
-    return FileResponse(path=str(target), media_type=media_type, headers=headers)
+    return Response(content=data, media_type=media_type, headers=headers)
