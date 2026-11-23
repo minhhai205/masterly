@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { login, fetchAuthStatus } from "@/lib/auth";
@@ -135,7 +136,10 @@ function LoginPageContent() {
       </div>
 
       <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
-        {t("Accounts are issued by the administrator.")}
+        {t("No account yet?")}{" "}
+        <Link href="/register" className="font-medium text-[var(--primary)] hover:underline">
+          {t("Create an account")}
+        </Link>
       </p>
     </div>
   );

@@ -59,6 +59,33 @@ export function fetchAuthStatus(): Promise<AuthStatus | null> {
   return authStatusRequest;
 }
 
+/** Create a group with its owner; the new owner is signed in on success. */
+export async function register(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(apiUrl("/api/auth/register"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, display_name: displayName }),
+      skipAuthRedirect: true,
+    });
+    if (res.ok) {
+      invalidateAuthStatusCache();
+      return { ok: true };
+    }
+    if (res.status === 422) {
+      return { ok: false, error: "Check the email and use a password of at least 8 characters" };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: extractDetail(data.detail) ?? "Registration failed" };
+  } catch {
+    return { ok: false, error: "Could not reach the server" };
+  }
+}
+
 /** Send the credentials to the backend. */
 export async function login(
   email: string,

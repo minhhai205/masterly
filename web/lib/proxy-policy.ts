@@ -5,6 +5,7 @@
 // rewrites and redirects.
 
 export const LOGIN_PATH = "/login";
+export const REGISTER_PATH = "/register";
 export const COOKIE_NAME = "masterly_token";
 /** Where a ChatGPT (Codex) sign-in returns when the loopback port is forwarded here. */
 export const CODEX_CALLBACK_PATH = "/auth/callback";
@@ -29,10 +30,11 @@ export function isWebSocketPath(pathname: string): boolean {
 const STATIC_ASSET =
   /\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|txt|json|map|css|js|wasm)$/i;
 
-/** Pages reachable without a session: the sign-in page and static assets. */
+/** Pages reachable without a session: sign-in, registration and static assets. */
 export function isAuthExempt(pathname: string): boolean {
   return (
     pathname.startsWith(LOGIN_PATH) ||
+    pathname.startsWith(REGISTER_PATH) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     STATIC_ASSET.test(pathname)
