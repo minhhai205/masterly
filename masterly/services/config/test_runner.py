@@ -466,7 +466,7 @@ class ConfigTestRunner:
             )
         else:
             run.emit(
-                "info", "Draft tested. Select the detected dimension in settings before applying."
+                "info", "Tested unsaved settings. Choose the detected dimension, then save the model."
             )
 
     def _test_search(self, run: TestRun, catalog: dict[str, Any]) -> None:
