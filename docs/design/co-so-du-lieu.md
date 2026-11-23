@@ -321,18 +321,22 @@ Web:
   kèm…) là giá trị mặc định trong mã, không phải biến môi trường. Các tệp cấu hình
   `system.json`, `auth.json` không còn dùng.
 
-## 6. Tạo bảng theo chức năng
+## 6. Tạo bảng và các chức năng sử dụng
 
-Đây là thứ tự dự kiến. Mỗi chức năng tạo hoặc đổi bảng của mình bằng một migration;
-khi một chức năng cần đổi bảng, bản thiết kế này được sửa trong cùng PR.
+Toàn bộ bảng được tạo trong migration đầu tiên, khi chuyển sang PostgreSQL. Về sau,
+chức năng nào cần đổi bảng thì thêm migration mới và sửa bản thiết kế này trong cùng PR.
 
-| Chức năng | Thay đổi |
-|---|---|
-| F01 Đăng ký và đăng nhập | Tạo `groups` (`id`, `created_at`), `accounts`, `workspaces` |
-| F03 Cấu hình dịch vụ bên ngoài | Thêm vào `groups` các cột `model_catalog`, `catalog_revision`, `codex_session` |
-| F04 Trò chuyện với AI | Tạo `sessions` (chưa có `path_id`), `messages`, `turns`, `turn_events` |
-| F08, F09, F10, F11 Lộ trình, học, ôn, tiến độ | Tạo `learning_paths`, `assessments`; thêm cột `path_id` vào `sessions`, khóa ngoại tới `learning_paths` |
-| F07 Tải lên và sắp xếp tài liệu học | Tạo `knowledge_bases`, `documents`, `chunks` |
-| F06 Điều chỉnh bộ nhớ người học | Tạo `memories` |
-| F14 Ghi chép trong lúc học | Tạo `notes` |
-| F02, F05 | Không đổi bảng |
+| Chức năng | Ghi | Đọc thêm |
+|---|---|---|
+| F01 Đăng ký và đăng nhập | `groups`, `accounts`, `workspaces` | |
+| F02 Cấp và thu hồi tài khoản | `accounts` | |
+| F03 Cấu hình dịch vụ bên ngoài | `groups` (cột cấu hình) | |
+| F04 Trò chuyện với AI | `sessions`, `messages`, `turns`, `turn_events` | `groups`, `memories`, `chunks` |
+| F05 Tổ chức không gian học | `workspaces`, `sessions` | |
+| F06 Điều chỉnh bộ nhớ người học | `memories` | `messages` |
+| F07 Tải lên và sắp xếp tài liệu học | `knowledge_bases`, `documents`, `chunks` | `groups` |
+| F08 Lập lộ trình | `learning_paths`, `sessions` | `messages`, `documents`, `notes` |
+| F09 Học một điểm kiến thức | `learning_paths`, `assessments` | `chunks` |
+| F10 Ôn tập theo lịch | `learning_paths`, `assessments` | |
+| F11 Theo dõi tiến độ lộ trình | `learning_paths` | `assessments` |
+| F14 Ghi chép trong lúc học | `notes` | |
