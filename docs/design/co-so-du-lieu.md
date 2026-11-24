@@ -174,9 +174,16 @@ và chú thích nguồn (cuộc trò chuyện, ghi chép hay tài liệu đã si
 | id | uuid, PK | |
 | session_id | uuid, FK `sessions` | |
 | message_id | bigint, FK `messages` | Câu trả lời của lượt |
-| status | text | `running`, `completed`, `failed`, `cancelled` |
+| capability | text | Phần chạy lượt: trò chuyện, sau này lộ trình |
+| status | text | `queued` (chờ chạy), `running`, `waiting_input` (chờ người học trả lời câu AI hỏi lại), `completed`, `failed`, `cancelled` |
 | error | text | |
+| failure_code | text | Loại lỗi khi lượt thất bại |
+| retryable | bool | Thử lại có thể thành công không |
 | created_at, finished_at | timestamptz | |
+
+Mỗi cuộc trò chuyện chỉ có một lượt chưa xong (`queued`, `running`, `waiting_input`)
+tại một thời điểm; chỉ mục duy nhất có điều kiện giữ ràng buộc này kể cả khi chạy
+nhiều tiến trình backend.
 
 `turn_events`: sự kiện phát ra trong lượt, để phát lại khi tải lại trang hay mất kết
 nối.
@@ -333,6 +340,11 @@ Web:
 
 Toàn bộ bảng được tạo trong migration đầu tiên, khi chuyển sang PostgreSQL. Về sau,
 chức năng nào cần đổi bảng thì thêm migration mới và sửa bản thiết kế này trong cùng PR.
+
+| Migration | Chức năng | Thay đổi |
+|---|---|---|
+| 0001 | F01 | Tạo 14 bảng |
+| 0002 | F04 | `turns`: thêm trạng thái `queued`, `waiting_input`; thêm `capability`, `failure_code`, `retryable`; mỗi cuộc trò chuyện một lượt chưa xong |
 
 | Chức năng | Ghi | Đọc thêm |
 |---|---|---|
