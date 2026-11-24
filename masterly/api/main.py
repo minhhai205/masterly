@@ -128,7 +128,7 @@ app.add_middleware(
 # Routers are imported only now: they read runtime settings at import time.
 from fastapi import Depends  # noqa: E402
 
-from masterly.api.routers import auth, model_settings, settings  # noqa: E402
+from masterly.api.routers import auth, model_settings, sessions, settings  # noqa: E402
 
 # The auth router guards its own endpoints: status/login/logout are public.
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -140,6 +140,9 @@ app.include_router(settings.public_router, prefix="/api/settings", tags=["settin
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"], dependencies=_auth)
 app.include_router(
     model_settings.router, prefix="/api/settings", tags=["settings"], dependencies=_auth
+)
+app.include_router(
+    sessions.router, prefix="/api/v1/sessions", tags=["sessions"], dependencies=_auth
 )
 
 
