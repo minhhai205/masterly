@@ -181,7 +181,15 @@ class Turn(Base):
     __tablename__ = "turns"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('running', 'completed', 'failed', 'cancelled')", name="status"
+            "status IN ('queued', 'running', 'waiting_input', 'completed', 'failed', 'cancelled')",
+            name="status",
+        ),
+        # A session runs at most one turn at a time.
+        Index(
+            "uq_turns_session_active",
+            "session_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running', 'waiting_input')"),
         ),
     )
 
@@ -190,8 +198,11 @@ class Turn(Base):
     message_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("messages.id", ondelete="SET NULL"), index=True
     )
+    capability: Mapped[str] = mapped_column(Text, server_default="")
     status: Mapped[str] = mapped_column(Text, server_default="running")
     error: Mapped[str] = mapped_column(Text, server_default="")
+    failure_code: Mapped[str] = mapped_column(Text, server_default="")
+    retryable: Mapped[bool] = mapped_column(server_default=text("false"))
     created_at: Mapped[datetime] = _created()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
