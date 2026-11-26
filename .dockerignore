@@ -1,0 +1,9 @@
+*
+!README.md
+!pyproject.toml
+!alembic.ini
+!masterly/
+!masterly/**
+**/__pycache__
+**/*.py[cod]
+**/.env*
