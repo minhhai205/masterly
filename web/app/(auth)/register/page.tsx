@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { fetchAuthStatus, register } from "@/lib/auth";
 
-// A new group has no models yet, so its owner goes straight to configuring them.
-const AFTER_REGISTER_PATH = "/settings/connections";
+const AFTER_REGISTER_PATH = "/";
 
 const INPUT_CLASS = `w-full px-3.5 py-2.5 rounded-lg border border-[var(--border)]
   bg-[var(--background)] text-[var(--foreground)]
