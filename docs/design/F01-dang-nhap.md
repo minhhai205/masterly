@@ -107,8 +107,7 @@ data/user/settings/         cấu hình dùng chung còn lại (danh mục mô h
    mật khẩu, và email chưa có tài khoản.
 3. Trong một giao dịch, dịch vụ tài khoản tạo nhóm, tài khoản chủ nhóm và không gian
    học mặc định.
-4. Backend tạo phiên và trả về trong cookie; web chuyển tới trang Nhà cung cấp, vì
-   nhóm mới chưa có mô hình nào.
+4. Backend tạo phiên và trả về trong cookie. Web chuyển về trang chủ (`/`).
 
 Đăng nhập:
 
