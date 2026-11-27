@@ -179,3 +179,10 @@ curl -fsS https://masterly.duckdns.org/api/auth/status
 - Nếu có thay đổi cấu hình Nginx hoặc PostgreSQL, áp dụng riêng cho dịch vụ tương ứng trên EC2 sau khi checkout đã cập nhật. Job deploy tự cập nhật hai dịch vụ `backend` và `web`.
 - Giữ checkout EC2 ở nhánh `main` và cập nhật mã nguồn qua GitHub. Giữ các volume `db-data` và `app-data` để dữ liệu tồn tại giữa các bản phát hành. `docker compose down -v` xóa các volume của stack.
 - Nếu job deploy lỗi, xem bước **Deploy and wait for Run Command** và output của command tương ứng trong **AWS Systems Manager → Run Command → Command history**. Khi đã xử lý nguyên nhân và hai image đã publish, chọn **Re-run failed jobs** để chạy lại job deploy.
+
+### Việc cần làm sau — Dọn image cũ trên EC2
+
+GitHub Actions build image. EC2 kéo và giải nén hai image backend và web theo commit SHA lên ổ EBS. Sau khi container chuyển sang bản mới, image của các bản cũ vẫn có thể nằm trên đĩa. Docker dùng chung các layer giống nhau và lượt chạy lại cùng SHA dùng lại cùng tag, nhưng dung lượng vẫn có thể tăng qua nhiều bản phát hành. Khi ổ đầy, bước kéo image có thể báo `no space left on device` trước khi chạy migration.
+
+- Kiểm tra định kỳ với `df -h /var/lib/containerd` và `docker system df`.
+- Bổ sung bước dọn image Masterly cũ sau khi deploy và kiểm tra HTTPS thành công. Giữ image đang chạy và hai image của bản phát hành liền trước để rollback. Chỉ dọn image trên EC2, giữ nguyên các volume dữ liệu và các tag trên GHCR.
