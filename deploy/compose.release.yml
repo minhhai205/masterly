@@ -1,0 +1,8 @@
+services:
+  backend:
+    build: !reset null
+    image: ${MASTERLY_BACKEND_IMAGE:?Set MASTERLY_BACKEND_IMAGE}
+
+  web:
+    build: !reset null
+    image: ${MASTERLY_WEB_IMAGE:?Set MASTERLY_WEB_IMAGE}

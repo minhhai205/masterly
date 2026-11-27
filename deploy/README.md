@@ -55,3 +55,14 @@ sudo install -m 0755 deploy/reload-nginx.sh /etc/letsencrypt/renewal-hooks/deplo
 sudo systemctl enable --now certbot.timer
 sudo certbot renew --dry-run --run-deploy-hooks
 ```
+
+## Deploy tự động từ `main`
+
+Sau khi publish hai image lên GHCR, job **Deploy to EC2** dùng GitHub OIDC và
+SSM để chạy `deploy/deploy.sh` bằng user `ubuntu` trong `~/masterly`.
+Workflow đọc `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION` và `EC2_INSTANCE_ID` từ
+Repository variables. EC2 dùng `.env.deploy` và các volume hiện có.
+
+Script pull hai image theo commit SHA, chạy Alembic, cập nhật backend và web,
+rồi kiểm tra `/api/auth/status` qua HTTPS. Xem kết quả ở **GitHub → Actions →
+Publish Docker images → Deploy to EC2**.
