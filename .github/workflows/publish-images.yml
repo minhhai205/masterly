@@ -46,6 +46,9 @@ jobs:
 
   deploy:
     name: Deploy to EC2
+    environment:
+      name: production
+      url: https://masterly.duckdns.org
     needs: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 22
