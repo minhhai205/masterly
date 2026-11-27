@@ -1,0 +1,45 @@
+name: Publish Docker images
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build backend and web images
+        run: |
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          source_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+
+          docker build --platform linux/amd64 --file Dockerfile \
+            --label "org.opencontainers.image.source=${source_url}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "${image_prefix}-backend:${GITHUB_SHA}" .
+
+          docker build --platform linux/amd64 --file web/Dockerfile \
+            --label "org.opencontainers.image.source=${source_url}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "${image_prefix}-web:${GITHUB_SHA}" web
+
+      - name: Publish images to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "${image_prefix}-backend:${GITHUB_SHA}"
+          docker push "${image_prefix}-web:${GITHUB_SHA}"
