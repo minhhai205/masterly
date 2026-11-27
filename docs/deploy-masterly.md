@@ -180,9 +180,13 @@ curl -fsS https://masterly.duckdns.org/api/auth/status
 - Giữ checkout EC2 ở nhánh `main` và cập nhật mã nguồn qua GitHub. Giữ các volume `db-data` và `app-data` để dữ liệu tồn tại giữa các bản phát hành. `docker compose down -v` xóa các volume của stack.
 - Nếu job deploy lỗi, xem bước **Deploy and wait for Run Command** và output của command tương ứng trong **AWS Systems Manager → Run Command → Command history**. Khi đã xử lý nguyên nhân và hai image đã publish, chọn **Re-run failed jobs** để chạy lại job deploy.
 
-### Việc cần làm sau — Dọn image cũ trên EC2
+### Dọn image cũ trên EC2
 
-GitHub Actions build image. EC2 kéo và giải nén hai image backend và web theo commit SHA lên ổ EBS. Sau khi container chuyển sang bản mới, image của các bản cũ vẫn có thể nằm trên đĩa. Docker dùng chung các layer giống nhau và lượt chạy lại cùng SHA dùng lại cùng tag, nhưng dung lượng vẫn có thể tăng qua nhiều bản phát hành. Khi ổ đầy, bước kéo image có thể báo `no space left on device` trước khi chạy migration.
+[Script deploy](../deploy/deploy.sh) tự dọn image trên EC2, nên ổ đĩa chỉ giữ image backend và web của hai bản phát hành: bản đang chạy và bản deploy thành công liền trước để rollback.
 
-- Kiểm tra định kỳ với `df -h /var/lib/containerd` và `docker system df`.
-- Bổ sung bước dọn image Masterly cũ sau khi deploy và kiểm tra HTTPS thành công. Giữ image đang chạy và hai image của bản phát hành liền trước để rollback. Chỉ dọn image trên EC2, giữ nguyên các volume dữ liệu và các tag trên GHCR.
+- **Trước khi kéo image:** nếu ổ chứa image còn trống dưới 3 GB, script xóa image Masterly cũ rồi đo lại. Vẫn thiếu thì job dừng với thông báo `Not enough disk space`, bản đang chạy giữ nguyên. Đổi ngưỡng bằng biến `min_free_mb` ở đầu script.
+- **Sau khi kiểm tra HTTPS thành công:** script ghi SHA vừa deploy vào lịch sử, xóa các image Masterly ngoài hai bản được giữ và in dung lượng ổ đĩa vào log. Lỗi khi dọn chỉ tạo cảnh báo, job vẫn thành công.
+- **Lịch sử deploy:** tệp `~/masterly/.git/masterly-releases` ghi SHA của hai bản được giữ, bản mới nhất ở dòng đầu.
+- **Phạm vi:** chỉ xóa image `masterly-backend` và `masterly-web` trên EC2. Image đang có container dùng, volume dữ liệu, image PostgreSQL và Nginx, cùng các tag trên GHCR được giữ nguyên.
+
+Khi cần xem dung lượng, chạy `df -h /var/lib/containerd` và `docker system df` trên EC2.
